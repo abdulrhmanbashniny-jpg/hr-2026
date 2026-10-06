@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import { callFn, fileSize, fmtDate, fmtDay, fmtTime, Icon, KEYS_AR, Logo, QTYPES, safeExt, sb, ScoreRing, Spinner, uid, usePublicSettings, useInterval } from '../lib.jsx';
+import { callFn, fileSize, fmtDate, fmtDay, fmtTime, Icon, KEYS_AR, Logo, QTYPES, safeExt, sb, ScoreRing, Spinner, uid, usePublicSettings, useInterval, waLink } from '../lib.jsx';
 
 const inkFor = (hex) => { const h = (hex || '#000').replace('#', ''); const n = parseInt(h.length === 3 ? h.split('').map((c) => c + c).join('') : h, 16); const r = (n >> 16) & 255, g = (n >> 8) & 255, b = n & 255; return (0.299 * r + 0.587 * g + 0.114 * b) > 160 ? '#17191C' : '#FFFFFF'; };
 const tint = (hex, a) => { const h = (hex || '#000').replace('#', ''); const n = parseInt(h, 16); const r = (n >> 16) & 255, g = (n >> 8) & 255, b = n & 255; const m = (c) => Math.round(c + (255 - c) * a); return `rgb(${m(r)},${m(g)},${m(b)})`; };
@@ -228,9 +228,11 @@ export function Apply() {
 }
 
 // ======================= النتيجة =======================
-function Result({ result, job, name, token, company }) {
+function Result({ result, job, name, token, company, refNo, hr, code }) {
   const passed = result?.passed;
-  const ref = String(token || '').slice(0, 8).toUpperCase();
+  const ref = refNo != null ? String(refNo) : String(token || '').slice(0, 8).toUpperCase();
+  const waMsg = `السلام عليكم، أنا ${name || ''} — رقم الترشيح: ${ref}. تقدّمت على وظيفة ${job?.title || ''}${code ? ` (كود ${code})` : ''} وعندي استفسار.`;
+  const waUrl = hr ? waLink(hr, waMsg) : null;
   return (
     <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '60px 16px' }}>
       <div className="paint-bar">{['#C8553D', '#E0A21B', '#2F5D50', '#3B5B8C', '#8A6E4B'].map((c) => <i key={c} style={{ background: c }} />)}</div>
@@ -255,9 +257,27 @@ function Result({ result, job, name, token, company }) {
           <div className="stack" style={{ gap: 6, padding: 18, borderRadius: 16, background: 'var(--amber-bg)', border: '1.5px solid var(--saffron)' }}><span className="mono small" style={{ color: 'var(--amber-ink)' }}>الآن</span><b>فرز المرشحين</b></div>
           <div className="stack" style={{ gap: 6, padding: 18, borderRadius: 16, background: 'var(--bg)' }}><span className="mono small muted">التالي</span><b>مقابلة افتراضية</b></div>
         </div>}
-        <div className="row between wrap" style={{ paddingTop: 22, borderTop: '1px solid var(--line2)', gap: 16 }}>
-          <div className="stack" style={{ gap: 2 }}><span className="small muted">رقم الطلب — {job?.title}</span><span className="mono" style={{ fontSize: 17, fontWeight: 600 }}>{ref}</span></div>
-          <Link to="/" className={`btn ${passed ? 'btn-outline' : 'btn-dark'}`}>{passed ? 'وظائف أخرى' : 'تصفّح الوظائف الأخرى'}</Link>
+        <div className="stack" style={{ paddingTop: 22, borderTop: '1px solid var(--line2)', gap: 16 }}>
+          <div className="row between wrap" style={{ gap: 16, alignItems: 'center' }}>
+            <div className="stack" style={{ gap: 4 }}>
+              <span className="small muted">رقم الترشيح — {job?.title}</span>
+              <span className="mono" style={{ fontSize: 30, fontWeight: 700, letterSpacing: 2, color: 'var(--accent-ink, #A8412B)' }}>{ref}</span>
+            </div>
+            <Link to="/" className={`btn ${passed ? 'btn-outline' : 'btn-dark'}`}>{passed ? 'وظائف أخرى' : 'تصفّح الوظائف الأخرى'}</Link>
+          </div>
+          <div className="notice amber" style={{ fontSize: 14 }}>
+            <Icon name="shield" style={{ flex: 'none' }} />
+            <span>احتفظ برقم الترشيح — <b>صوّر الشاشة</b> أو احفظه لديك. ستحتاجه للرجوع إلى طلبك أو عند أي استفسار مستقبلي.</span>
+          </div>
+          {waUrl && <>
+            <div className="divider" />
+            <div className="stack" style={{ gap: 10 }}>
+              <span className="small muted">هل لديك استفسار حول طلبك؟ تواصل مباشرة مع الموارد البشرية — سيصلهم رقم ترشيحك تلقائياً.</span>
+              <a href={waUrl} target="_blank" rel="noopener noreferrer" className="btn btn-lg btn-block" style={{ background: '#25D366', borderColor: '#25D366', color: '#fff' }}>
+                <Icon name="wa" />تواصل عبر واتساب مع الموارد البشرية
+              </a>
+            </div>
+          </>}
         </div>
       </div>
     </div>
@@ -275,6 +295,7 @@ export function TestPage() {
   const [ans, setAns] = useState({});
   const [i, setI] = useState(0);
   const [left, setLeft] = useState(null);
+  const [count, setCount] = useState(60);
   const [confirm, setConfirm] = useState(false);
   const [uploading, setUploading] = useState(false);
   const offset = useRef(0);
@@ -305,12 +326,12 @@ export function TestPage() {
   const q = qs[i];
   const submit = async () => {
     if (submitted.current) return; submitted.current = true;
-    setConfirm(false); setPhase('submitting');
+    setConfirm(false); setCount(60); setPhase('submitting');
     try {
       const answers = qs.map((qq) => { const a = ans[qq.id] || {}; return { question_id: qq.id, value_option: a.value_option, value_number: a.value_number, value_text: a.value_text, files: (a.files || []).map((f) => f.path) }; });
       const r = await callFn('candidate', { action: 'submit', token, answers, integrity: integ.current });
       try { localStorage.removeItem(key); } catch { /* تجاهل */ }
-      setData((d) => ({ ...d, submitted: true, result: r.result }));
+      setData((d) => ({ ...d, submitted: true, result: r.result, ref_no: r.ref_no, hr_whatsapp: r.hr_whatsapp, job: { ...d.job, code: r.job?.code ?? d.job?.code } }));
       setPhase('result');
     } catch (x) { submitted.current = false; setErr(x.message); setPhase('test'); }
   };
@@ -323,8 +344,17 @@ export function TestPage() {
     last.current = Date.now();
     if (rem <= 0) submit();
   }, 1000);
+  useInterval(() => { if (phase === 'submitting') setCount((c) => (c > 0 ? c - 1 : 0)); }, 1000);
 
   const setA = (patch) => setAns((a) => ({ ...a, [q.id]: { ...(a[q.id] || {}), ...patch } }));
+  // حفظ إجابة السؤال الحالي تدريجياً عند التنقّل (بلا انتظار) — يبدأ تصحيح الأسئلة النصية في الخلفية لتسريع التحليل النهائي
+  const saveAnswer = (qq) => {
+    if (!qq || submitted.current) return;
+    const av = ans[qq.id];
+    if (!av) return;
+    callFn('candidate', { action: 'save_answer', token, question_id: qq.id, value_option: av.value_option, value_number: av.value_number, value_text: av.value_text, files: (av.files || []).map((f) => f.path) }).catch(() => { /* أفضل جهد */ });
+  };
+  const go = (k) => { saveAnswer(q); setI(k); };
   const isAnswered = (qq) => { const a = ans[qq.id]; if (!a) return false; if (qq.type === 'mcq') return a.value_option != null; if (qq.type === 'number') return a.value_number !== undefined && a.value_number !== ''; if (qq.type === 'text') return (a.value_text || '').trim().length > 0; return (a.files || []).length > 0; };
   const answered = qs.filter(isAnswered).length;
   const upload = async (files) => {
@@ -346,12 +376,26 @@ export function TestPage() {
 
   if (phase === 'loading') return <Spinner />;
   if (phase === 'error') return <div className="wrap" style={{ paddingTop: 80 }}><div className="card empty stack" style={{ alignItems: 'center' }}><b>{err || 'الرابط غير صالح'}</b><Link to="/" className="btn btn-dark">العودة للوظائف</Link></div></div>;
-  if (phase === 'result') return <Result result={data.result} job={data.job} name={data.candidate?.full_name} token={token} company={s.company_name} />;
-  if (phase === 'submitting') return (
-    <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
-      <div className="card stack center" style={{ maxWidth: 520, alignItems: 'center', padding: 44, gap: 16 }}><span className="spinner" style={{ width: 44, height: 44, borderWidth: 4 }} /><h2 style={{ fontSize: 22 }}>جارٍ تحليل إجاباتك…</h2><span className="muted">نقيّم إجاباتك وسيرتك الذاتية وفق معايير الوظيفة. قد يستغرق ذلك دقيقة، لا تغلق الصفحة.</span></div>
-    </div>
-  );
+  if (phase === 'result') return <Result result={data.result} job={data.job} name={data.candidate?.full_name} token={token} company={s.company_name} refNo={data.ref_no} hr={data.hr_whatsapp} code={data.job?.code} />;
+  if (phase === 'submitting') {
+    const R = 52, C = 2 * Math.PI * R, prog = Math.max(0, Math.min(1, count / 60));
+    return (
+      <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
+        <div className="card stack center" style={{ maxWidth: 560, alignItems: 'center', padding: 44, gap: 20, textAlign: 'center' }}>
+          <div style={{ position: 'relative', width: 128, height: 128 }}>
+            <svg width="128" height="128" viewBox="0 0 128 128" style={{ transform: 'rotate(-90deg)' }}>
+              <circle cx="64" cy="64" r={R} fill="none" stroke="var(--line)" strokeWidth="9" />
+              <circle cx="64" cy="64" r={R} fill="none" stroke="var(--accent, #C8553D)" strokeWidth="9" strokeLinecap="round" strokeDasharray={C} strokeDashoffset={C * (1 - prog)} style={{ transition: 'stroke-dashoffset 1s linear' }} />
+            </svg>
+            <span className="mono" style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 34, fontWeight: 700 }}>{count}</span>
+          </div>
+          <h2 style={{ fontSize: 23 }}>جارٍ تحليل إجاباتك…</h2>
+          <span className="muted" style={{ lineHeight: 1.9, maxWidth: 420 }}>نقيّم إجاباتك وسيرتك الذاتية وفق معايير الوظيفة. يستغرق ذلك نحو دقيقة — <b style={{ color: 'var(--accent-ink, #A8412B)' }}>من فضلك لا تغلق هذه الصفحة</b> حتى تظهر نتيجتك.</span>
+          <div className="notice amber xs" style={{ textAlign: 'start' }}><Icon name="spark" style={{ flex: 'none' }} /><span>نتيجتك ورقم ترشيحك سيظهران تلقائياً بمجرد اكتمال التحليل.</span></div>
+        </div>
+      </div>
+    );
+  }
   if (phase === 'intro') return (
     <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '40px 16px' }}>
       <div className="card stack" style={{ maxWidth: 720, width: '100%', padding: 40, gap: 22 }}>
@@ -386,7 +430,7 @@ export function TestPage() {
           <style>{'@media(min-width:901px){.test-grid{grid-template-columns:300px minmax(0,1fr)!important}}'}</style>
           <aside className="card stack" style={{ gap: 18, alignSelf: 'start' }}>
             <div className="row between"><b>الأسئلة</b><span className="small muted">أُجيب {answered} من {qs.length}</span></div>
-            <div className="qnav">{qs.map((qq, k) => <button key={qq.id} className={k === i ? 'cur' : isAnswered(qq) ? 'done' : ''} aria-label={`السؤال ${k + 1}`} onClick={() => setI(k)}>{k + 1}</button>)}</div>
+            <div className="qnav">{qs.map((qq, k) => <button key={qq.id} className={k === i ? 'cur' : isAnswered(qq) ? 'done' : ''} aria-label={`السؤال ${k + 1}`} onClick={() => go(k)}>{k + 1}</button>)}</div>
             <div className="notice amber xs"><Icon name="spark" style={{ flex: 'none' }} /><span>تُقيَّم إجاباتك وفق معايير الوظيفة ثم تراجعها لجنة التوظيف.</span></div>
           </aside>
           {q && <main className="card stack" style={{ padding: '36px 40px', gap: 24, minHeight: 520 }}>
@@ -401,8 +445,8 @@ export function TestPage() {
             </div>}
             {err && <div className="notice red">{err}</div>}
             <div className="row between" style={{ marginTop: 'auto', paddingTop: 22, borderTop: '1px solid var(--line2)' }}>
-              <button className="btn btn-ghost" disabled={i === 0} onClick={() => setI(i - 1)}><Icon name="arrowR" size={16} />السابق</button>
-              {i < qs.length - 1 ? <button className="btn btn-dark" onClick={() => setI(i + 1)}>التالي<Icon name="arrowL" size={16} /></button>
+              <button className="btn btn-ghost" disabled={i === 0} onClick={() => go(i - 1)}><Icon name="arrowR" size={16} />السابق</button>
+              {i < qs.length - 1 ? <button className="btn btn-dark" onClick={() => go(i + 1)}>التالي<Icon name="arrowL" size={16} /></button>
                 : <button className="btn btn-accent" onClick={() => setConfirm(true)}>إرسال الإجابات للتقييم</button>}
             </div>
           </main>}

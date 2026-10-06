@@ -89,6 +89,14 @@ export function Settings() {
   if (!isAdmin) return <Navigate to="/admin" replace />;
   if (!s) return <Spinner />;
   const set = (k, v) => setS({ ...s, [k]: v });
+  // تطبيع رقم واتساب إلى الصيغة الدولية (يُبقي الأرقام غير السعودية كما هي)
+  const normWa = (v) => {
+    let d = String(v || '').replace(/[^\d]/g, '').replace(/^00/, '');
+    if (d.startsWith('966')) return d;
+    if (d.startsWith('0') && d.length === 10) return '966' + d.slice(1);
+    if (d.startsWith('5') && d.length === 9) return '966' + d;
+    return d;
+  };
   const save = async () => {
     setBusy(true);
     const { id, updated_at, ...row } = s;
@@ -140,6 +148,10 @@ export function Settings() {
           <div className="card stack">
             <h2 style={{ fontSize: 19 }}>عام</h2>
             <label className="field"><span className="label">اسم الشركة (يظهر في الموقع والرسائل)</span><input className="input" value={s.company_name} onChange={(e) => set('company_name', e.target.value)} /></label>
+            <label className="field"><span className="label">رقم واتساب الموارد البشرية (لاستفسارات المتقدمين)</span>
+              <input className="input ltr mono" inputMode="tel" placeholder="05XXXXXXXX" value={s.hr_whatsapp || ''} onChange={(e) => set('hr_whatsapp', normWa(e.target.value))} />
+              <span className="xs muted">يظهر للمتقدم في صفحة النتيجة كزر واتساب مع رقم ترشيحه. {s.hr_whatsapp ? <>سيفتح المحادثة على: <span className="mono" dir="ltr">+{String(s.hr_whatsapp).replace(/[^\d]/g, '')}</span></> : 'اتركه فارغاً لإخفاء الزر.'}</span>
+            </label>
             <div className="row between small"><span>إظهار الدرجة للمتقدم في صفحة النتيجة</span><Toggle label="إظهار الدرجة" on={s.show_score_to_candidate} onChange={(v) => set('show_score_to_candidate', v)} /></div>
           </div>
         </div>
