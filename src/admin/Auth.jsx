@@ -65,6 +65,7 @@ const NAV = [
   { to: '/admin/ranking', label: 'ترتيب المرشحين', icon: 'trophy' },
   { to: '/admin/schedule', label: 'ترتيب المواعيد', icon: 'calendar' },
   { to: '/admin/messages', label: 'رسائل واتساب', icon: 'wa' },
+  { to: '/admin/announcements', label: 'الإعلانات', icon: 'spark', admin: true },
   { to: '/admin/users', label: 'المستخدمون والصلاحيات', icon: 'shield', admin: true },
   { to: '/admin/settings', label: 'الإعدادات والتكاملات', icon: 'gear', admin: true },
 ];

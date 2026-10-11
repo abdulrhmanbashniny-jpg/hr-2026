@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import { callFn, fileSize, fmtDate, fmtDay, fmtTime, Icon, KEYS_AR, Logo, QTYPES, safeExt, sb, ScoreRing, Spinner, uid, usePublicSettings, useInterval, waLink } from '../lib.jsx';
+import { callFn, fileSize, fmtDate, fmtDay, fmtTime, Icon, KEYS_AR, Logo, normUrl, QTYPES, safeExt, sb, ScoreRing, Spinner, uid, usePublicSettings, useInterval, waLink } from '../lib.jsx';
 
 const inkFor = (hex) => { const h = (hex || '#000').replace('#', ''); const n = parseInt(h.length === 3 ? h.split('').map((c) => c + c).join('') : h, 16); const r = (n >> 16) & 255, g = (n >> 8) & 255, b = n & 255; return (0.299 * r + 0.587 * g + 0.114 * b) > 160 ? '#17191C' : '#FFFFFF'; };
 const tint = (hex, a) => { const h = (hex || '#000').replace('#', ''); const n = parseInt(h, 16); const r = (n >> 16) & 255, g = (n >> 8) & 255, b = n & 255; const m = (c) => Math.round(c + (255 - c) * a); return `rgb(${m(r)},${m(g)},${m(b)})`; };
@@ -16,6 +16,74 @@ function Header({ company, back }) {
   );
 }
 const Footer = ({ company }) => <footer className="site-footer"><span>© {new Date().getFullYear()} {company} — جميع الحقوق محفوظة</span><span>بياناتك محمية ولا تُستخدم إلا لأغراض التوظيف</span><span className="credit">من تصميم <strong>عبدالرحمن سالم باشنيني</strong> · <a href="tel:0599222345" dir="ltr">٠٥٩٩٢٢٢٣٤٥</a> · <a href="mailto:abdulrhman.bashniny@gmail.com">abdulrhman.bashniny@gmail.com</a></span></footer>;
+
+// ======================= الإعلانات (نافذة منبثقة + بانر) =======================
+// هل للإعلان محتوى فعلي؟
+const hasAnn = (a) => !!(a && (a.title || a.body || a.image));
+// مفتاح تخزين فريد لكل إعلان حسب نطاقه ومحتواه (يظهر من جديد عند تغيّر المحتوى)
+function annKey(a, scope = 'hp') {
+  const str = `${a.title || ''}|${a.body || ''}|${a.link || ''}|${(a.image || '').length}`;
+  let h = 5381; for (let i = 0; i < str.length; i++) h = ((h << 5) + h + str.charCodeAt(i)) | 0;
+  return `${scope}-ann-` + (h >>> 0).toString(36);
+}
+// صورة الإعلان كاملة بدون قص (object-fit: contain + حد أقصى للارتفاع)
+const AnnImage = ({ src }) => (
+  <img src={src} alt="" style={{ width: '100%', maxHeight: '58vh', objectFit: 'contain', display: 'block', background: '#F3F1EC' }} />
+);
+// نافذة الإعلان المنبثقة — تظهر مرة وتُغلق بـ ✕ وتُحفظ محلياً
+function Announcement({ a, scope = 'hp' }) {
+  const [open, setOpen] = useState(false);
+  useEffect(() => {
+    if (!hasAnn(a)) { setOpen(false); return; }
+    let seen = false;
+    try { seen = !!localStorage.getItem(annKey(a, scope)); } catch { /* تخزين غير متاح */ }
+    setOpen(!seen);
+  }, [a, scope]);
+  if (!hasAnn(a) || !open) return null;
+  const href = normUrl(a.link);
+  const close = () => { try { localStorage.setItem(annKey(a, scope), '1'); } catch { /* تجاهل */ } setOpen(false); };
+  return (
+    <div className="modal-back" style={{ alignItems: 'center', zIndex: 120 }} onMouseDown={(e) => e.target === e.currentTarget && close()}>
+      <div className="modal" role="dialog" aria-modal="true" aria-label={a.title || 'إعلان'} style={{ maxWidth: 480, position: 'relative', overflow: 'hidden' }}>
+        <button className="btn icon-btn" aria-label="إغلاق" onClick={close}
+          style={{ position: 'absolute', insetInlineEnd: 12, top: 12, zIndex: 3, background: 'rgba(255,255,255,.92)', boxShadow: '0 2px 8px rgba(0,0,0,.15)', borderRadius: 999 }}>
+          <Icon name="x" />
+        </button>
+        {a.image && <AnnImage src={a.image} />}
+        <div className="stack" style={{ padding: '26px 28px', gap: 12 }}>
+          {a.title && <h2 style={{ fontSize: 23, fontWeight: 700, lineHeight: 1.5 }}>{a.title}</h2>}
+          {a.body && <p style={{ fontSize: 16, lineHeight: 1.9, color: 'var(--ink2)', whiteSpace: 'pre-wrap' }}>{a.body}</p>}
+          <div className="row" style={{ gap: 10, marginTop: 6 }}>
+            {href && <a href={href} target="_blank" rel="noopener noreferrer" className="btn btn-accent" onClick={close}>عرض التفاصيل<Icon name="arrowL" size={16} /></a>}
+            <button className="btn btn-outline" onClick={close}>تم، شكراً</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+// بانر الإعلان داخل الصفحة (ثابت، غير قابل للإغلاق) — يُستخدم في صفحة الوظيفة
+function AnnBanner({ a }) {
+  if (!hasAnn(a)) return null;
+  const href = normUrl(a.link);
+  return (
+    <div className="card" style={{ overflow: 'hidden', padding: 0, border: '1px solid var(--line2)', borderInlineStart: '4px solid var(--accent)' }}>
+      <div className="ann-banner" style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'stretch', gap: 0 }}>
+        {a.image && (
+          <div style={{ flex: '0 0 auto', width: 'min(230px, 40%)', background: '#F3F1EC', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <img src={a.image} alt="" style={{ width: '100%', maxHeight: 220, objectFit: 'contain', display: 'block' }} />
+          </div>
+        )}
+        <div className="stack" style={{ flex: '1 1 260px', gap: 8, padding: '18px 20px', justifyContent: 'center' }}>
+          <span className="row small" style={{ gap: 6, color: 'var(--accent)', fontWeight: 700 }}><Icon name="spark" size={15} />إعلان خاص بالوظيفة</span>
+          {a.title && <h3 style={{ fontSize: 18, fontWeight: 700, lineHeight: 1.5 }}>{a.title}</h3>}
+          {a.body && <p style={{ fontSize: 15, lineHeight: 1.85, color: 'var(--ink2)', whiteSpace: 'pre-wrap' }}>{a.body}</p>}
+          {href && <a href={href} target="_blank" rel="noopener noreferrer" className="btn btn-accent btn-sm" style={{ alignSelf: 'flex-start', marginTop: 2 }}>عرض التفاصيل<Icon name="arrowL" size={15} /></a>}
+        </div>
+      </div>
+    </div>
+  );
+}
 
 // ======================= الصفحة الرئيسية =======================
 export function Home() {
@@ -35,6 +103,7 @@ export function Home() {
   return (
     <>
       <Header company={s.company_name} />
+      <Announcement a={s.announcement} />
       <section className="hero">
         <div className="stack" style={{ gap: 26 }}>
           <span className="badge-live"><span className="dot" />{jobs ? `${jobs.length} وظائف شاغرة · التقديم مفتوح الآن` : 'جارٍ تحميل الوظائف…'}</span>
@@ -96,13 +165,15 @@ export function JobPage() {
   const { id } = useParams();
   const s = usePublicSettings();
   const [job, setJob] = useState(undefined);
-  useEffect(() => { sb.from('jobs').select('id,code,title,department_id,city,employment_type,experience,salary_text,description,tasks,requirements,must_have,nice_to_have,benefits,deadline,vacancies,status,pass_threshold,duration_minutes,color,created_at,departments(name)').eq('id', id).maybeSingle().then(({ data }) => setJob(data || null)); }, [id]);
+  useEffect(() => { sb.from('jobs').select('id,code,title,department_id,city,employment_type,experience,salary_text,description,tasks,requirements,must_have,nice_to_have,benefits,deadline,vacancies,status,pass_threshold,duration_minutes,color,created_at,ann_enabled,ann_title,ann_body,ann_image_url,ann_link,departments(name)').eq('id', id).maybeSingle().then(({ data }) => setJob(data || null)); }, [id]);
   if (job === undefined) return <><Header company={s.company_name} back="/" /><Spinner /></>;
   if (!job) return <><Header company={s.company_name} back="/" /><div className="wrap"><div className="card empty" style={{ marginTop: 40 }}>هذه الوظيفة غير متاحة حالياً.</div></div></>;
   const ink = inkFor(job.color);
+  const jobAnn = job.ann_enabled ? { title: job.ann_title, body: job.ann_body, image: job.ann_image_url, link: job.ann_link } : null;
   return (
     <>
       <Header company={s.company_name} back="/" />
+      <Announcement a={jobAnn} scope={`job-${job.id}`} />
       <section className="job-hero" style={{ background: job.color, color: ink }}>
         <div className="stack" style={{ gap: 16 }}>
           <div className="row small"><span className="mono glass">{job.code}</span><span>{job.departments?.name}</span></div>
@@ -112,6 +183,7 @@ export function JobPage() {
         <div className="row hide-sm" style={{ gap: 6 }}>{[.25, .5, .75].map((a) => <div key={a} style={{ width: 42, height: 140, borderRadius: 10, background: tint(job.color, a) }} />)}</div>
       </section>
       <section className="wrap" style={{ paddingTop: 32 }}>
+        {jobAnn && <div style={{ marginBottom: 24 }}><AnnBanner a={jobAnn} /></div>}
         <div className="grid3" style={{ alignItems: 'start' }}>
           <div className="stack" style={{ gridColumn: 'span 2', gap: 20 }}>
             <article className="card stack"><h2 style={{ fontSize: 22 }}>الوصف الوظيفي</h2><p style={{ lineHeight: 1.9, color: 'var(--ink2)' }}>{job.description}</p></article>
