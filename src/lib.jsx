@@ -103,6 +103,40 @@ export function waLink(phone, text, mode = 'wa') {
 }
 export const displayPhone = (p) => { const d = String(p || ''); return d.startsWith('966') ? `+966 ${d.slice(3, 5)} ${d.slice(5, 8)} ${d.slice(8)}` : d; };
 
+// تطبيع رابط خارجي: يضيف https:// إذا كتبه المستخدم بدون بروتوكول (www.site.com → https://www.site.com)
+export function normUrl(link) {
+  const s = String(link || '').trim();
+  if (!s) return '';
+  if (/^(https?:|mailto:|tel:)/i.test(s)) return s;
+  if (/^\/\//.test(s)) return 'https:' + s;
+  return 'https://' + s.replace(/^\/+/, '');
+}
+
+// قراءة صورة وتصغيرها إلى data URL مضغوط (بدون الحاجة لمخزن منفصل). يُرجع Promise بالـ URL.
+export function imgToDataURL(file, { maxW = 1100, maxBytes = 650000 } = {}) {
+  return new Promise((resolve, reject) => {
+    if (!file) return reject(new Error('لا يوجد ملف'));
+    if (!/^image\//.test(file.type)) return reject(new Error('الملف يجب أن يكون صورة'));
+    const rd = new FileReader();
+    rd.onload = () => {
+      const img = new Image();
+      img.onload = () => {
+        const scale = Math.min(1, maxW / (img.width || maxW));
+        const w = Math.max(1, Math.round(img.width * scale)), h = Math.max(1, Math.round(img.height * scale));
+        const c = document.createElement('canvas'); c.width = w; c.height = h;
+        c.getContext('2d').drawImage(img, 0, 0, w, h);
+        let url = c.toDataURL('image/jpeg', 0.82);
+        if (url.length > maxBytes) url = c.toDataURL('image/jpeg', 0.62);
+        resolve(url);
+      };
+      img.onerror = () => reject(new Error('تعذّر قراءة الصورة'));
+      img.src = rd.result;
+    };
+    rd.onerror = () => reject(new Error('تعذّر قراءة الملف'));
+    rd.readAsDataURL(file);
+  });
+}
+
 // ---------------- الترتيب والأوزان (اختيارية) ----------------
 export function evalPercent(ev, criteria, weighted) {
   const vals = (criteria || []).map((c) => ({ v: Number(ev?.scores?.[c.key] || 0), w: Number(c.weight || 1) })).filter((x) => x.v > 0);

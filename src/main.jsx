@@ -12,7 +12,7 @@ import { Candidates, CandidateView } from './admin/Candidates.jsx';
 import Ranking from './admin/Ranking.jsx';
 import Scheduler from './admin/Scheduler.jsx';
 import Messages from './admin/Messages.jsx';
-import { Users, Settings, Account } from './admin/Settings.jsx';
+import { Users, Settings, Announcements, Account } from './admin/Settings.jsx';
 
 function App() {
   return (
@@ -36,6 +36,7 @@ function App() {
             <Route path="schedule" element={<Scheduler />} />
             <Route path="messages" element={<Messages />} />
             <Route path="users" element={<Users />} />
+            <Route path="announcements" element={<Announcements />} />
             <Route path="settings" element={<Settings />} />
             <Route path="account" element={<Account />} />
           </Route>

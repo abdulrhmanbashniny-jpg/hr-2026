@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Navigate } from 'react-router-dom';
-import { callFn, Icon, initial, Modal, ROLES, sb, Spinner, Toggle, useToast } from '../lib.jsx';
+import { callFn, Icon, imgToDataURL, initial, Modal, normUrl, ROLES, sb, Spinner, Toggle, useToast } from '../lib.jsx';
 import { useAdmin } from './Auth.jsx';
 
 const genPw = () => { const c = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789'; let s = ''; const r = crypto.getRandomValues(new Uint32Array(10)); r.forEach((x) => { s += c[x % c.length]; }); return `Hr#${s}`; };
@@ -154,6 +154,73 @@ export function Settings() {
             </label>
             <div className="row between small"><span>إظهار الدرجة للمتقدم في صفحة النتيجة</span><Toggle label="إظهار الدرجة" on={s.show_score_to_candidate} onChange={(v) => set('show_score_to_candidate', v)} /></div>
           </div>
+        </div>
+      </div>
+    </>
+  );
+}
+
+// ======================= لوحة الإعلانات (إعلان الصفحة الرئيسية) =======================
+export function Announcements() {
+  const { isAdmin } = useAdmin();
+  const toast = useToast();
+  const [s, setS] = useState(null);
+  const [busy, setBusy] = useState(false);
+  useEffect(() => { sb.from('app_settings').select('*').eq('id', 1).single().then(({ data }) => setS(data)); }, []);
+  if (!isAdmin) return <Navigate to="/admin" replace />;
+  if (!s) return <Spinner />;
+  const set = (k, v) => setS({ ...s, [k]: v });
+  const pickImg = (file) => { if (!file) return; imgToDataURL(file).then((url) => set('ann_image_url', url)).catch((e) => toast(e.message, 'err')); };
+  const save = async () => {
+    setBusy(true);
+    const { error } = await sb.from('app_settings').update({ ann_enabled: !!s.ann_enabled, ann_title: s.ann_title || null, ann_body: s.ann_body || null, ann_image_url: s.ann_image_url || null, ann_link: s.ann_link || null }).eq('id', 1);
+    setBusy(false);
+    if (error) return toast(error.message, 'err');
+    toast('تم حفظ الإعلان', 'ok');
+  };
+  const previewHref = normUrl(s.ann_link);
+  const hasContent = !!(s.ann_title || s.ann_body || s.ann_image_url);
+  return (
+    <>
+      <div className="page-head"><div><h1>الإعلانات</h1><p>إعلان الصفحة الرئيسية — يظهر للزائر كنافذة ترحيبية عند دخول الموقع</p></div>
+        <button className="btn btn-dark" disabled={busy} onClick={save}>{busy ? <span className="spinner" /> : 'حفظ الإعلان'}</button></div>
+
+      <div className="grid2" style={{ alignItems: 'start', gap: 20 }}>
+        <div className="card stack" style={{ gap: 16 }}>
+          <div className="row between wrap">
+            <div className="stack" style={{ gap: 2 }}><h2 style={{ fontSize: 19 }}>إعلان الصفحة الرئيسية</h2><span className="small muted">يُغلق بزر ✕، ويظهر من جديد للزائر عند تعديل محتواه.</span></div>
+            <Toggle label="تفعيل الإعلان" on={!!s.ann_enabled} onChange={(v) => set('ann_enabled', v)} />
+          </div>
+          <label className="field"><span className="label">عنوان الإعلان</span><input className="input" value={s.ann_title || ''} onChange={(e) => set('ann_title', e.target.value)} placeholder="مثال: أهلاً بك في بوابة التوظيف" /></label>
+          <label className="field"><span className="label">نص الإعلان</span><textarea className="textarea" style={{ minHeight: 120 }} value={s.ann_body || ''} onChange={(e) => set('ann_body', e.target.value)} placeholder="اكتب نص الإعلان هنا…" /></label>
+          <label className="field"><span className="label">رابط عند الضغط (اختياري)</span><input className="input ltr" dir="ltr" value={s.ann_link || ''} onChange={(e) => set('ann_link', e.target.value)} placeholder="www.example.com أو https://" />
+            <span className="xs muted">يُضاف https:// تلقائياً إذا كتبته بدون بروتوكول.</span></label>
+          <div className="field"><span className="label">صورة الإعلان (اختياري)</span>
+            <div className="row wrap" style={{ gap: 12, alignItems: 'center' }}>
+              <label className="btn btn-outline" style={{ cursor: 'pointer' }}><Icon name="image" size={16} />اختر صورة<input type="file" accept="image/*" hidden onChange={(e) => pickImg(e.target.files[0])} /></label>
+              {s.ann_image_url && <button type="button" className="btn btn-danger btn-sm" onClick={() => set('ann_image_url', '')}>حذف الصورة</button>}
+              <span className="xs muted">تظهر كاملة بدون قص؛ تُصغَّر وتُضغط تلقائياً.</span>
+            </div>
+          </div>
+        </div>
+
+        <div className="stack" style={{ gap: 12, position: 'sticky', top: 96 }}>
+          <span className="label">معاينة مباشرة</span>
+          {hasContent ? (
+            <div className="card" style={{ padding: 0, overflow: 'hidden', maxWidth: 440 }}>
+              {s.ann_image_url && <img src={s.ann_image_url} alt="" style={{ width: '100%', maxHeight: 300, objectFit: 'contain', display: 'block', background: '#F3F1EC' }} />}
+              <div className="stack" style={{ padding: '22px 24px', gap: 10 }}>
+                {s.ann_title && <h2 style={{ fontSize: 21, fontWeight: 700, lineHeight: 1.5 }}>{s.ann_title}</h2>}
+                {s.ann_body && <p style={{ fontSize: 15, lineHeight: 1.9, color: 'var(--ink2)', whiteSpace: 'pre-wrap' }}>{s.ann_body}</p>}
+                <div className="row" style={{ gap: 10, marginTop: 4 }}>
+                  {previewHref && <a href={previewHref} target="_blank" rel="noopener noreferrer" className="btn btn-accent btn-sm">عرض التفاصيل<Icon name="arrowL" size={15} /></a>}
+                  <span className="btn btn-outline btn-sm">تم، شكراً</span>
+                </div>
+              </div>
+            </div>
+          ) : <div className="card empty">أضف عنواناً أو نصاً أو صورة لرؤية المعاينة.</div>}
+          {!s.ann_enabled && hasContent && <div className="notice amber xs"><Icon name="spark" style={{ flex: 'none' }} /><span>الإعلان غير مُفعّل — فعّله من الأعلى ليظهر للزوّار.</span></div>}
+          <div className="notice blue xs"><Icon name="spark" style={{ flex: 'none' }} /><span>إعلانات الوظائف الخاصة تُدار من داخل كل وظيفة (تبويب «بيانات الوظيفة»).</span></div>
         </div>
       </div>
     </>

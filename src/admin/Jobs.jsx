@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import { callFn, fmtDate, Icon, KEYS_AR, QTYPES, sb, Spinner, Toggle, useToast } from '../lib.jsx';
+import { callFn, fmtDate, Icon, imgToDataURL, KEYS_AR, QTYPES, sb, Spinner, Toggle, useToast } from '../lib.jsx';
 import { useAdmin } from './Auth.jsx';
 
 const JSTATUS = { draft: ['مسودة', 'p-gray'], published: ['منشورة', 'p-green'], closed: ['مغلقة', 'p-red'] };
@@ -73,6 +73,7 @@ export function JobEditor() {
   if (job === false) return <div className="card empty">الوظيفة غير موجودة أو لا تملك صلاحية الاطلاع عليها</div>;
   const ro = !canManage(job.department_id);
   const set = (k, v) => setJob((j) => ({ ...j, [k]: v }));
+  const pickAnnImg = (file) => { if (!file) return; imgToDataURL(file).then((url) => set('ann_image_url', url)).catch((e) => toast(e.message, 'err')); };
   const setQ = (k, patch) => setQs((l) => l.map((q, i) => (i === k ? { ...q, ...patch } : q)));
   const setK = (k, patch) => setQs((l) => l.map((q, i) => (i === k ? { ...q, key: { ...q.key, ...patch } } : q)));
   const rw = job.rank_weights || {};
@@ -85,6 +86,7 @@ export function JobEditor() {
       description: job.description, tasks: toLines(job._tasks), requirements: reqs, must_have: toLines(job._must), nice_to_have: toLines(job._nice), benefits: toLines(job._ben),
       deadline: job.deadline || null, vacancies: Number(job.vacancies || 1), status: job.status, pass_threshold: Number(job.pass_threshold), duration_minutes: Number(job.duration_minutes),
       ai_prompt: job.ai_prompt, color: job.color, rank_weights: job.rank_weights, eval_criteria: job.eval_criteria,
+      ann_enabled: !!job.ann_enabled, ann_title: job.ann_title || null, ann_body: job.ann_body || null, ann_image_url: job.ann_image_url || null, ann_link: job.ann_link || null,
     };
     const { error } = await sb.from('jobs').update(patch).eq('id', id);
     setBusy(false);
@@ -156,6 +158,28 @@ export function JobEditor() {
           {T({ label: 'الشروط والمتطلبات (تظهر للمتقدم)', k: '_reqs', rows: 6, hint: 'كل سطر بالشكل — العنوان: القيمة' })}
           <div className="grid2">{T({ label: 'متطلبات إلزامية (يطابقها الذكاء الاصطناعي مع السيرة)', k: '_must', rows: 4, hint: 'كل متطلب في سطر' })}{T({ label: 'متطلبات مفضّلة', k: '_nice', rows: 4, hint: 'كل متطلب في سطر' })}</div>
           {T({ label: 'المزايا', k: '_ben', rows: 3, hint: 'كل ميزة في سطر' })}
+
+          <div className="stack" style={{ gap: 14, padding: '16px', background: '#F8F6F2', borderRadius: 14, border: '1px solid var(--line2)' }}>
+            <div className="row between wrap" style={{ gap: 8 }}>
+              <div className="stack" style={{ gap: 2 }}><b className="row" style={{ gap: 6 }}><Icon name="spark" size={16} />إعلان خاص بهذه الوظيفة</b><span className="xs muted">يظهر للمتقدم كبانر داخل صفحة الوظيفة + نافذة منبثقة أول ما يفتحها.</span></div>
+              <Toggle label="تفعيل" on={!!job.ann_enabled} onChange={(v) => set('ann_enabled', v)} />
+            </div>
+            {job.ann_enabled && <>
+              <div className="grid2">
+                <label className="field"><span className="label">عنوان الإعلان</span><input className="input" value={job.ann_title || ''} disabled={ro} onChange={(e) => set('ann_title', e.target.value)} placeholder="مثال: مقاعد محدودة لهذه الوظيفة" /></label>
+                <label className="field"><span className="label">رابط عند الضغط (اختياري)</span><input className="input ltr" dir="ltr" value={job.ann_link || ''} disabled={ro} onChange={(e) => set('ann_link', e.target.value)} placeholder="www.example.com أو https://" /></label>
+              </div>
+              <label className="field"><span className="label">نص الإعلان</span><textarea className="textarea" rows={3} value={job.ann_body || ''} disabled={ro} onChange={(e) => set('ann_body', e.target.value)} placeholder="اكتب نص الإعلان الخاص بالوظيفة…" /></label>
+              <div className="field"><span className="label">صورة الإعلان (اختياري)</span>
+                <div className="row wrap" style={{ gap: 12, alignItems: 'center' }}>
+                  <label className="btn btn-outline" style={{ cursor: ro ? 'not-allowed' : 'pointer' }}><Icon name="image" size={16} />اختر صورة<input type="file" accept="image/*" hidden disabled={ro} onChange={(e) => pickAnnImg(e.target.files[0])} /></label>
+                  {job.ann_image_url && <button type="button" className="btn btn-danger btn-sm" disabled={ro} onClick={() => set('ann_image_url', '')}>حذف الصورة</button>}
+                  <span className="xs muted">تظهر كاملة بدون قص؛ تُصغَّر وتُضغط تلقائياً.</span>
+                </div>
+                {job.ann_image_url && <img src={job.ann_image_url} alt="معاينة" style={{ marginTop: 10, maxWidth: 320, maxHeight: 200, objectFit: 'contain', borderRadius: 12, border: '1px solid var(--line2)', display: 'block', background: '#fff' }} />}
+              </div>
+            </>}
+          </div>
         </div>
         <div className="stack" style={{ gap: 16 }}>
           <div className="card stack">
