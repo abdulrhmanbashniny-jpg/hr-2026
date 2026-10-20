@@ -18,6 +18,13 @@ export interface Release {
 
 export const RELEASES: Release[] = [
   {
+    version: '3.4',
+    date: '2026-10-21',
+    kind: 'minor',
+    ar: ['صورة ووصف يظهران عند مشاركة رابط المنصة في لينكدإن وواتساب وغيرها.', 'بيانات منظمة وخريطة موقع وملف llms.txt لتفهم محركات البحث والذكاء الاصطناعي المنصة بدقة.'],
+    en: ['An image and description appear when the platform link is shared on LinkedIn, WhatsApp and elsewhere.', 'Structured data, a sitemap and an llms.txt file so search and AI engines describe the platform accurately.'],
+  },
+  {
     version: '3.3',
     date: '2026-10-21',
     kind: 'minor',
