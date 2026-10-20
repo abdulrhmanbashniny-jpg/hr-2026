@@ -6,6 +6,7 @@
  *   npm run db:seed            → seeds once (skips if the demo company exists)
  *   npm run db:seed -- --reset → deletes the demo companies and seeds again
  */
+import './load-env';
 import { randomUUID } from 'node:crypto';
 import { eq, inArray } from 'drizzle-orm';
 import { hashPassword } from '@/lib/auth/password';

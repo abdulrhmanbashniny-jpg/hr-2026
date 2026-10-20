@@ -3,6 +3,7 @@
  * Schedule it with cron on self-hosted servers, e.g. `0 5 * * * cd /srv/mutabaa && npm run job:daily`
  * (05:00 UTC = 08:00 Riyadh).
  */
+import '../src/db/load-env';
 import { closeDb } from '../src/db';
 import { runDailyJob } from '../src/lib/notifications/dispatch';
 

@@ -59,7 +59,7 @@ platform/
 
 ## Getting started
 
-Requirements: Node.js 20.9+ and PostgreSQL 14+.
+Requirements: Node.js 20.12+ and PostgreSQL 14+. The CLI scripts read `.env` themselves.
 
 ```bash
 cd platform
@@ -89,7 +89,14 @@ To try the importer, run `npm run samples`. It writes `samples/initial/*.xlsx` a
 
 ## Deployment
 
-**Vercel:** set the project's root directory to `platform`, add the environment variables, and the `vercel.json` cron calls `/api/cron/daily` at 05:00 UTC (08:00 Riyadh) with `CRON_SECRET`. Run `npm run db:migrate` against the production database during release. Use `STORAGE_DRIVER=s3` (serverless file systems are ephemeral).
+**Vercel + Supabase (or any managed PostgreSQL):**
+
+1. Create the database, and use its **pooler** connection string (Supabase: *Connect → Transaction pooler*, port 6543), because Vercel functions reach the internet over IPv4 only.
+2. Import the repository into Vercel with the root directory set to `platform`. Vercel runs the `vercel-build` script, which applies migrations on every deploy, seeds when `SEED_ON_BUILD=true`, then builds.
+3. Set the variables: `DATABASE_URL`, `DATABASE_SSL=true`, `DATABASE_SSL_REJECT_UNAUTHORIZED=false` (Supabase), `DATABASE_POOL_MAX=5`, `AUTH_SECRET`, `APP_ENCRYPTION_KEY`, `CRON_SECRET`, `SEED_ADMIN_PASSWORD`, and `STORAGE_DRIVER=database` (or `s3`, since serverless disks are ephemeral). `APP_URL` defaults to the project's production URL.
+4. `vercel.json` pins functions to Frankfurt (`fra1`, next to Supabase `eu-central-1`) and schedules `/api/cron/daily` at 05:00 UTC (08:00 Riyadh); Vercel sends `CRON_SECRET` with it.
+
+Vercel caps request bodies at 4.5 MB, so attachments default to 4 MB there (`DOCUMENT_MAX_MB`). Government exports are far smaller.
 
 **Self-hosted (Node/Docker/VM):** `npm run build && npm start`, plus a system cron entry such as `0 5 * * * cd /srv/mutabaa/platform && npm run job:daily`.
 

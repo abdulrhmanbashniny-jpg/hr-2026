@@ -12,6 +12,7 @@ import { getI18n } from '@/lib/i18n';
 import { emailEnabled } from '@/lib/notifications/email';
 import { telegramEnabled } from '@/lib/notifications/telegram';
 import { whatsappAutomatic } from '@/lib/notifications/whatsapp';
+import { MAX_DOCUMENT_MB } from '@/lib/storage';
 
 export async function generateMetadata() {
   const { t } = await getI18n();
@@ -73,6 +74,7 @@ export default async function DocumentsPage(props: PageProps<'/app/documents'>) 
         canWrite={can(s.role, 'documents:write') && (s.subscription?.canWrite ?? true)}
         canShare={can(s.role, 'documents:share') && (s.subscription?.canWrite ?? true)}
         channels={{ email: emailEnabled(s.settings), telegram: telegramEnabled(), whatsappAuto: whatsappAutomatic(s.settings) }}
+        maxFileMb={MAX_DOCUMENT_MB}
       />
     </>
   );

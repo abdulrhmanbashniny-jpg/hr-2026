@@ -1,3 +1,4 @@
+import './load-env';
 import path from 'node:path';
 import { migrate } from 'drizzle-orm/node-postgres/migrator';
 import { closeDb, getDb } from './index';

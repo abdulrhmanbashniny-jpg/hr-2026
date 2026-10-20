@@ -12,7 +12,7 @@ import { useI18n } from '@/lib/i18n/client';
 import { f } from '@/lib/i18n/format';
 import type { ContactOption, DocumentVM } from './documents-hub';
 
-export function DocumentForm({ doc, authorities, contacts, onClose }: { doc: DocumentVM | null; authorities: { id: string; name: string }[]; contacts: ContactOption[]; onClose: () => void }) {
+export function DocumentForm({ doc, authorities, contacts, maxFileMb, onClose }: { doc: DocumentVM | null; authorities: { id: string; name: string }[]; contacts: ContactOption[]; maxFileMb: number; onClose: () => void }) {
   const { t } = useI18n();
   const [state, action] = useActionState(saveDocument.bind(null, doc?.id ?? null), null);
   const [authority, setAuthority] = useState(doc?.authorityId ?? '');
@@ -72,7 +72,7 @@ export function DocumentForm({ doc, authorities, contacts, onClose }: { doc: Doc
         <Field label={t.documents.renewalFee} htmlFor="doc-fee">
           <input id="doc-fee" name="renewalFee" type="number" min={0} step="1" defaultValue={doc?.renewalFee ?? ''} className="ui-input ui-input--ltr ui-num" />
         </Field>
-        <Field label={doc?.hasFile ? t.documents.replaceFile : t.documents.file} htmlFor="doc-file" hint={doc?.fileName ? `${t.documents.fileHint} · ${doc.fileName}` : t.documents.fileHint}>
+        <Field label={doc?.hasFile ? t.documents.replaceFile : t.documents.file} htmlFor="doc-file" hint={doc?.fileName ? `${f(t.documents.fileHint, { mb: maxFileMb })} · ${doc.fileName}` : f(t.documents.fileHint, { mb: maxFileMb })}>
           <input id="doc-file" name="file" type="file" accept=".pdf,.png,.jpg,.jpeg,.webp,.doc,.docx,.xlsx" className="ui-input" />
         </Field>
         <div className="md:col-span-2">

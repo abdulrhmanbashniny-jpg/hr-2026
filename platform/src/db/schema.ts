@@ -1,5 +1,6 @@
 import {
   boolean,
+  customType,
   date,
   index,
   integer,
@@ -22,6 +23,7 @@ const tenantRef = () =>
     .references(() => tenants.id, { onDelete: 'cascade' });
 const createdAt = () => timestamp('created_at', { withTimezone: true }).notNull().defaultNow();
 const updatedAt = () => timestamp('updated_at', { withTimezone: true }).notNull().defaultNow();
+const bytea = customType<{ data: Buffer; driverData: Buffer }>({ dataType: () => 'bytea' });
 
 // ───────────────────────── Platform ─────────────────────────
 
@@ -547,5 +549,14 @@ export const shareLinks = pgTable('share_links', {
   lastAccessedAt: timestamp('last_accessed_at', { withTimezone: true }),
   revokedAt: timestamp('revoked_at', { withTimezone: true }),
   createdBy: uuid('created_by').references(() => users.id, { onDelete: 'set null' }),
+  createdAt: createdAt(),
+});
+
+/** Document attachments when STORAGE_DRIVER=database (serverless hosts without a writable disk or S3). */
+export const storedFiles = pgTable('stored_files', {
+  key: text('key').primaryKey(),
+  contentType: text('content_type').notNull(),
+  size: integer('size').notNull(),
+  data: bytea('data').notNull(),
   createdAt: createdAt(),
 });

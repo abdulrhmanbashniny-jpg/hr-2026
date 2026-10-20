@@ -1,6 +1,9 @@
 import { mkdir, readFile, rm, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { DeleteObjectCommand, GetObjectCommand, PutObjectCommand, S3Client } from '@aws-sdk/client-s3';
+import { eq } from 'drizzle-orm';
+import { db } from '@/db';
+import { storedFiles } from '@/db/schema';
 import { env } from './env';
 
 /**
@@ -61,9 +64,31 @@ class S3Driver implements StorageDriver {
   }
 }
 
+class DatabaseDriver implements StorageDriver {
+  async put(key: string, body: Uint8Array, contentType: string) {
+    assertKey(key);
+    const data = Buffer.from(body);
+    await db
+      .insert(storedFiles)
+      .values({ key, contentType, size: data.length, data })
+      .onConflictDoUpdate({ target: storedFiles.key, set: { contentType, size: data.length, data } });
+  }
+  async get(key: string) {
+    assertKey(key);
+    const [row] = await db.select({ data: storedFiles.data }).from(storedFiles).where(eq(storedFiles.key, key));
+    if (!row) throw new Error('File not found');
+    return new Uint8Array(row.data);
+  }
+  async remove(key: string) {
+    assertKey(key);
+    await db.delete(storedFiles).where(eq(storedFiles.key, key));
+  }
+}
+
 let driver: StorageDriver | null = null;
 export function storage(): StorageDriver {
-  driver ??= env.storage.driver === 's3' ? new S3Driver() : new LocalDriver();
+  const kind = env.storage.driver;
+  driver ??= kind === 's3' ? new S3Driver() : kind === 'database' ? new DatabaseDriver() : new LocalDriver();
   return driver;
 }
 
@@ -76,4 +101,6 @@ export const ALLOWED_DOCUMENT_TYPES: Record<string, string> = {
   'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': 'xlsx',
   'application/msword': 'doc',
 };
-export const MAX_DOCUMENT_BYTES = 15 * 1024 * 1024;
+/** Vercel caps function request bodies at 4.5 MB, so attachments default to 4 MB there. */
+export const MAX_DOCUMENT_MB = Number(process.env.DOCUMENT_MAX_MB || (process.env.VERCEL ? 4 : 15));
+export const MAX_DOCUMENT_BYTES = MAX_DOCUMENT_MB * 1024 * 1024;

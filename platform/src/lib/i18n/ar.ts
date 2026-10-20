@@ -506,7 +506,7 @@ export const ar = {
     noResponsible: 'بدون مسؤول محدد',
     renewalFee: 'رسوم التجديد التقديرية',
     file: 'الملف المرفق',
-    fileHint: 'PDF أو صورة أو Word حتى 15 ميجابايت',
+    fileHint: 'PDF أو صورة أو Word حتى {mb} ميجابايت',
     replaceFile: 'استبدال الملف',
     externalUrl: 'أو رابط مباشر للملف',
     notes: 'ملاحظات',

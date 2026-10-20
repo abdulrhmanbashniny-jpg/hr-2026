@@ -508,7 +508,7 @@ export const en: Dictionary = {
     noResponsible: 'No one assigned',
     renewalFee: 'Estimated renewal fee',
     file: 'Attachment',
-    fileHint: 'PDF, image or Word up to 15 MB',
+    fileHint: 'PDF, image or Word up to {mb} MB',
     replaceFile: 'Replace file',
     externalUrl: 'Or a direct link to the file',
     notes: 'Notes',

@@ -13,7 +13,7 @@ import { normalizeDateInput, toHijri } from '@/lib/dates';
 import { shareDocuments, SHARE_EXPIRY_HOURS, type ShareChannel, type ShareResult } from '@/lib/documents/share';
 import { f, getI18n } from '@/lib/i18n';
 import { syncTenantAlerts } from '@/lib/rules/sync';
-import { ALLOWED_DOCUMENT_TYPES, MAX_DOCUMENT_BYTES, storage } from '@/lib/storage';
+import { ALLOWED_DOCUMENT_TYPES, MAX_DOCUMENT_BYTES, MAX_DOCUMENT_MB, storage } from '@/lib/storage';
 
 function parseAlertDays(raw: string): number[] {
   const days = raw
@@ -93,8 +93,8 @@ export async function saveDocument(id: string | null, _prev: ActionResult | null
     const file = form.get('file');
     let fileFields: Partial<typeof documents.$inferInsert> = {};
     if (file instanceof File && file.size > 0) {
-      if (file.size > MAX_DOCUMENT_BYTES) return { ok: false, error: t.documents.fileHint };
-      if (!ALLOWED_DOCUMENT_TYPES[file.type]) return { ok: false, error: t.documents.fileHint };
+      if (file.size > MAX_DOCUMENT_BYTES) return { ok: false, error: f(t.documents.fileHint, { mb: MAX_DOCUMENT_MB }) };
+      if (!ALLOWED_DOCUMENT_TYPES[file.type]) return { ok: false, error: f(t.documents.fileHint, { mb: MAX_DOCUMENT_MB }) };
       const key = `${s.tenant.id}/${randomUUID()}`;
       await storage().put(key, new Uint8Array(await file.arrayBuffer()), file.type);
       fileFields = { fileKey: key, fileName: file.name.slice(0, 200), fileMime: file.type, fileSize: file.size };

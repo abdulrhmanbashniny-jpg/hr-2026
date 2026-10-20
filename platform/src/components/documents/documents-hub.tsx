@@ -66,6 +66,7 @@ export function DocumentsHub(props: {
   canWrite: boolean;
   canShare: boolean;
   channels: { email: boolean; telegram: boolean; whatsappAuto: boolean };
+  maxFileMb: number;
 }) {
   const { t, locale } = useI18n();
   const toast = useToast();
@@ -310,7 +311,7 @@ export function DocumentsHub(props: {
         </section>
       </div>
 
-      {editing ? <DocumentForm doc={editing === 'new' ? null : editing} authorities={props.authorities} contacts={props.contacts} onClose={close} /> : null}
+      {editing ? <DocumentForm doc={editing === 'new' ? null : editing} authorities={props.authorities} contacts={props.contacts} maxFileMb={props.maxFileMb} onClose={close} /> : null}
       {sharing ? <ShareDialog docs={props.docs.filter((d) => sharing.includes(d.id))} contacts={props.contacts} channels={props.channels} onClose={() => setSharing(null)} /> : null}
       {bundling ? <BundleForm documentIds={[...selected]} onClose={() => setBundling(false)} onDone={() => setSelected(new Set())} /> : null}
     </>
