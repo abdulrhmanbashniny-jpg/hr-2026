@@ -13,7 +13,7 @@ import { encryptSecret, randomToken, sha256 } from '@/lib/crypto';
 import { env } from '@/lib/env';
 import { f, getI18n } from '@/lib/i18n';
 import { emailEnabled, emailLayout, sendEmail, verifySmtp } from '@/lib/notifications/email';
-import { telegramDeepLink } from '@/lib/notifications/telegram';
+import { botFor, deleteWebhook, escapeHtml, getMe, sendMessage, setCommands, setWebhook, telegramDeepLink, tenantBot } from '@/lib/notifications/telegram';
 import { syncTenantAlerts } from '@/lib/rules/sync';
 import { tenantSettingsSchema, type TenantSettings } from '@/lib/settings';
 
@@ -177,7 +177,7 @@ export async function inviteMember(_prev: ActionResult<{ url: string }> | null, 
     const token = randomToken(32);
     await db.insert(invitations).values({ tenantId: s.tenant.id, email, role, tokenHash: sha256(token), invitedBy: s.user.id, expiresAt: new Date(Date.now() + 7 * 86_400_000) });
     const url = `${env.appUrl}/invite/${token}`;
-    if (emailEnabled(s.settings)) {
+    if (await emailEnabled(s.settings)) {
       await sendEmail(s.settings, {
         to: email,
         subject: `دعوة للانضمام إلى ${s.tenant.name} على منصة متابعة`,
@@ -256,6 +256,7 @@ export async function saveContact(id: string | null, _prev: ActionResult | null,
       modules: form.getAll('modules').map(String).filter((m) => MODULES.includes(m)),
       canRequestDocuments: bool(form, 'canRequestDocuments'),
       receiveWeeklyReport: bool(form, 'receiveWeeklyReport'),
+      ...(form.has('telegramChatId') ? { telegramChatId: /^-?\d{4,20}$/.test(str(form, 'telegramChatId')) ? str(form, 'telegramChatId') : null } : {}),
     };
     if (id) {
       await db.update(contacts).set(values).where(and(eq(contacts.id, id), eq(contacts.tenantId, s.tenant.id)));
@@ -286,7 +287,7 @@ export async function regenerateTelegramLink(id: string): Promise<ActionResult<{
     const code = randomToken(12);
     await db.update(contacts).set({ telegramLinkCode: code }).where(and(eq(contacts.id, id), eq(contacts.tenantId, s.tenant.id)));
     revalidatePath('/app/settings');
-    return { ok: true, message: t.settings.saved, data: { url: telegramDeepLink(code) } };
+    return { ok: true, message: t.settings.saved, data: { url: telegramDeepLink(botFor(s.settings, s.tenant.id), code) } };
   });
 }
 
@@ -303,3 +304,90 @@ export async function unlinkTelegram(id: string): Promise<ActionResult> {
     return { ok: true, message: t.settings.saved };
   });
 }
+
+// ───────────────────────── Company Telegram bot ─────────────────────────
+
+/**
+ * Connects (or reconfigures) the company's own Telegram bot. A new token is checked with Telegram,
+ * stored encrypted, and the bot's webhook is pointed at this company's endpoint with a fresh secret,
+ * so the bot can only ever answer with this company's data.
+ */
+export async function saveTelegramBot(_prev: ActionResult | null, form: FormData): Promise<ActionResult> {
+  return runAction(async () => {
+    const s = await requirePermission('settings:manage', { allowReadOnly: true });
+    const { t } = await getI18n();
+    const token = str(form, 'botToken');
+    const current = s.settings.telegram;
+    const group = str(form, 'groupChatId');
+    if (group && !/^-?\d{4,20}$/.test(group)) return { ok: false, error: `${t.settings.tgGroup}: ${t.common.error}` };
+    const next: TenantSettings['telegram'] = {
+      ...current,
+      groupChatId: group,
+      allowSummary: bool(form, 'allowSummary'),
+      allowAlerts: bool(form, 'allowAlerts'),
+      allowDocuments: bool(form, 'allowDocuments'),
+      allowActions: bool(form, 'allowActions'),
+    };
+    if (token) {
+      if (!/^\d{5,15}:[A-Za-z0-9_-]{30,}$/.test(token)) return { ok: false, error: t.settings.tgTokenInvalid };
+      let me: { username: string; first_name: string };
+      try {
+        me = await getMe(token);
+      } catch {
+        return { ok: false, error: t.settings.tgTokenInvalid };
+      }
+      const secret = randomToken(24);
+      const bot = { token, username: me.username, tenantId: s.tenant.id };
+      try {
+        await setWebhook(bot, `${env.appUrl}/api/telegram/webhook/${s.tenant.id}`, secret);
+        await setCommands(bot).catch(() => undefined);
+      } catch (err) {
+        return { ok: false, error: `${t.settings.tgWebhookFailed} (${(err as Error).message})` };
+      }
+      Object.assign(next, { enabled: true, botTokenEnc: encryptSecret(token), botUsername: me.username, botName: me.first_name, webhookSecret: secret, connectedAt: new Date().toISOString() });
+    }
+    await saveSettings(s.tenant.id, { ...s.settings, telegram: next });
+    await audit({ tenantId: s.tenant.id, userId: s.user.id, action: token ? 'settings.telegram_connected' : 'settings.telegram_updated', entityType: 'tenant', entityId: s.tenant.id, summary: token ? `ربط بوت تليجرام الشركة @${next.botUsername}` : 'تحديث صلاحيات بوت التليجرام' });
+    revalidatePath('/app/settings');
+    return { ok: true, message: token ? f(t.settings.tgConnected, { username: next.botUsername }) : t.settings.saved };
+  });
+}
+
+export async function disconnectTelegramBot(): Promise<ActionResult> {
+  return runAction(async () => {
+    const s = await requirePermission('settings:manage', { allowReadOnly: true });
+    const { t } = await getI18n();
+    const bot = tenantBot(s.settings, s.tenant.id);
+    if (bot) await deleteWebhook(bot).catch(() => undefined);
+    await saveSettings(s.tenant.id, { ...s.settings, telegram: { ...s.settings.telegram, enabled: false, botTokenEnc: null, botUsername: '', botName: '', webhookSecret: '', connectedAt: null } });
+    await audit({ tenantId: s.tenant.id, userId: s.user.id, action: 'settings.telegram_disconnected', entityType: 'tenant', entityId: s.tenant.id, summary: 'فصل بوت تليجرام الشركة' });
+    revalidatePath('/app/settings');
+    return { ok: true, message: t.settings.saved };
+  });
+}
+
+/** Sends a test message to the company group, or to every linked responsible person when there is no group. */
+export async function testTelegramBot(): Promise<ActionResult> {
+  return runAction(async () => {
+    const s = await requirePermission('settings:manage', { allowReadOnly: true });
+    const { t } = await getI18n();
+    const bot = botFor(s.settings, s.tenant.id);
+    if (!bot) return { ok: false, error: t.settings.botNotConfigured };
+    const targets = s.settings.telegram.groupChatId
+      ? [s.settings.telegram.groupChatId]
+      : (await db.select({ chat: contacts.telegramChatId }).from(contacts).where(and(eq(contacts.tenantId, s.tenant.id), eq(contacts.isActive, true)))).map((c) => c.chat).filter((c): c is string => !!c);
+    if (!targets.length) return { ok: false, error: t.settings.tgNoTarget };
+    let sent = 0;
+    for (const chat of targets) {
+      try {
+        await sendMessage(bot, chat, `✅ <b>اختبار بوت ${escapeHtml(s.tenant.name)}</b>\nالبوت يعمل وسيرسل التنبيهات هنا. أرسل /help لعرض الأوامر.`);
+        sent++;
+      } catch (err) {
+        console.error('telegram test failed', err);
+      }
+    }
+    if (!sent) return { ok: false, error: t.settings.tgTestFailed };
+    return { ok: true, message: f(t.settings.tgTestSent, { n: sent }) };
+  });
+}
+

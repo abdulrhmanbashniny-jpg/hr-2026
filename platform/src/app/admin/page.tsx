@@ -4,7 +4,7 @@ import { ColumnChart } from '@/components/admin/charts';
 import { ApprovePaymentButton, ExtendTrialButton } from '@/components/admin/quick-actions';
 import { STATUS_FILL, StatusPill, type SubStatusKey } from '@/components/admin/status';
 import { Avatar } from '@/components/app/topbar';
-import { Card, Empty, PageHead } from '@/components/ui/card';
+import { Card, Empty, Notice, PageHead } from '@/components/ui/card';
 import { Kpi } from '@/components/ui/kpi';
 import { platformOverview } from '@/lib/admin/metrics';
 import { formatSar } from '@/lib/billing/pricing';
@@ -15,8 +15,9 @@ export async function generateMetadata() {
   return { title: t.console.overview.title };
 }
 
-export default async function AdminOverview() {
+export default async function AdminOverview(props: PageProps<'/admin'>) {
   const { t, locale } = await getI18n();
+  const denied = (await props.searchParams).denied === '1';
   const o = t.console.overview;
   const m = await platformOverview();
   const sar = (halalas: number) => fmtNumber(halalas / 100);
@@ -36,6 +37,7 @@ export default async function AdminOverview() {
   return (
     <>
       <PageHead title={o.title} sub={o.sub} eyebrow={<><Activity size={14} /> {t.console.name}</>} />
+      {denied ? <Notice tone="amber">{t.console.team.denied}</Notice> : null}
 
       <div className="kpi-grid kpi-grid--3">
         <Kpi color="blue" icon={<Wallet {...i} />} label={o.mrr} value={sar(m.mrr)} foot={f(o.mrrFoot, { arr: sar(m.arr) })} href="/admin/payments" />

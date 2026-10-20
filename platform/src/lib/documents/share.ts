@@ -4,7 +4,7 @@ import { documents, shareLinks } from '@/db/schema';
 import { randomToken, sha256 } from '@/lib/crypto';
 import { env } from '@/lib/env';
 import { emailLayout, escapeHtml as escapeEmail, sendEmail, type MailAttachment } from '@/lib/notifications/email';
-import { escapeHtml, sendDocument, sendMessage, telegramEnabled } from '@/lib/notifications/telegram';
+import { botFor, escapeHtml, sendDocument, sendMessage } from '@/lib/notifications/telegram';
 import { sendWhatsApp, waDeepLink, whatsappAutomatic } from '@/lib/notifications/whatsapp';
 import type { TenantSettings } from '@/lib/settings';
 import { storage } from '@/lib/storage';
@@ -12,7 +12,8 @@ import { storage } from '@/lib/storage';
 export type DocumentRecord = typeof documents.$inferSelect;
 export type ShareChannel = 'email' | 'telegram' | 'whatsapp';
 
-export const SHARE_EXPIRY_HOURS = [1, 24, 72, 168] as const;
+/** Link lifetimes offered when sharing; 0 means a permanent link. */
+export const SHARE_EXPIRY_HOURS = [1, 3, 6, 12, 24, 72, 168, 720, 0] as const;
 const MAX_EMAIL_ATTACHMENT_BYTES = 20 * 1024 * 1024;
 
 export async function createShareLink(input: {
@@ -24,7 +25,7 @@ export async function createShareLink(input: {
   createdBy?: string | null;
 }) {
   const token = randomToken(32);
-  const expiresAt = new Date(Date.now() + input.expiresInHours * 3_600_000);
+  const expiresAt = input.expiresInHours > 0 ? new Date(Date.now() + input.expiresInHours * 3_600_000) : null;
   const [row] = await db
     .insert(shareLinks)
     .values({
@@ -44,7 +45,7 @@ export async function createShareLink(input: {
 export async function resolveShareToken(token: string) {
   if (!/^[A-Za-z0-9_-]{20,100}$/.test(token)) return null;
   const [link] = await db.select().from(shareLinks).where(eq(shareLinks.tokenHash, sha256(token)));
-  if (!link || link.revokedAt || link.expiresAt < new Date()) return null;
+  if (!link || link.revokedAt || (link.expiresAt && link.expiresAt < new Date())) return null;
   const docs = link.documentIds.length
     ? await db.select().from(documents).where(and(eq(documents.tenantId, link.tenantId), inArray(documents.id, link.documentIds)))
     : [];
@@ -105,7 +106,7 @@ export async function shareDocuments(input: {
         createdBy: input.createdBy,
       })
     : null;
-  const expiresText = link ? link.expiresAt.toISOString().replace('T', ' ').slice(0, 16) : '';
+  const validity = !link ? '' : link.expiresAt ? `صالح حتى ${new Intl.DateTimeFormat('ar-SA-u-ca-gregory-nu-latn', { timeZone: 'Asia/Riyadh', dateStyle: 'medium', timeStyle: 'short' }).format(link.expiresAt)} بتوقيت الرياض` : 'رابط دائم';
   const list = input.docs.map((d) => `• ${documentCaption(d)}`).join('\n');
   const note = input.note?.trim() ? `${input.note.trim()}\n\n` : '';
 
@@ -124,7 +125,7 @@ export async function shareDocuments(input: {
             attachments.push({ filename: f.name, content: Buffer.from(f.bytes), contentType: f.mime });
           }
         }
-        const linkHtml = link ? `<p><a href="${link.url}" style="color:#0f5b4b">تحميل المستندات</a> (صالح حتى ${expiresText} UTC)</p>` : '';
+        const linkHtml = link ? `<p><a href="${link.url}" style="color:#0f5b4b">تحميل المستندات</a> (${validity})</p>` : '';
         await sendEmail(input.settings, {
           to: input.recipient.email,
           subject: `مستندات من ${input.tenantName}`,
@@ -138,22 +139,23 @@ export async function shareDocuments(input: {
         });
         results.push({ channel, ok: true, linkUrl: link?.url });
       } else if (channel === 'telegram') {
-        if (!telegramEnabled()) throw new Error('telegram_disabled');
+        const bot = botFor(input.settings, input.tenantId);
+        if (!bot) throw new Error('telegram_disabled');
         if (!input.recipient.telegramChatId) throw new Error('no_telegram');
         const chat = input.recipient.telegramChatId;
         if (input.mode === 'attachment') {
           for (const d of input.docs) {
             const f = await readDocumentFile(d);
-            if (f) await sendDocument(chat, f, escapeHtml(documentCaption(d)));
-            else if (d.externalUrl) await sendMessage(chat, `${escapeHtml(documentCaption(d))}\n${escapeHtml(d.externalUrl)}`);
+            if (f) await sendDocument(bot, chat, f, escapeHtml(documentCaption(d)));
+            else if (d.externalUrl) await sendMessage(bot, chat, `${escapeHtml(documentCaption(d))}\n${escapeHtml(d.externalUrl)}`);
           }
-          if (note) await sendMessage(chat, escapeHtml(note));
+          if (note) await sendMessage(bot, chat, escapeHtml(note));
         } else {
-          await sendMessage(chat, `${escapeHtml(note)}<b>مستندات من ${escapeHtml(input.tenantName)}</b>\n${escapeHtml(list)}\n\nالرابط صالح حتى ${expiresText} UTC`, [[{ text: 'تحميل المستندات', url: link!.url }]]);
+          await sendMessage(bot, chat, `${escapeHtml(note)}<b>مستندات من ${escapeHtml(input.tenantName)}</b>\n${escapeHtml(list)}\n\n${validity}`, [[{ text: 'تحميل المستندات', url: link!.url }]]);
         }
         results.push({ channel, ok: true, linkUrl: link?.url });
       } else if (channel === 'whatsapp') {
-        const text = `${note}مستندات من ${input.tenantName}:\n${list}\n\n${link!.url}\n(صالح حتى ${expiresText} UTC)`;
+        const text = `${note}مستندات من ${input.tenantName}:\n${list}\n\n${link!.url}\n(${validity})`;
         if (whatsappAutomatic(input.settings)) {
           if (!input.recipient.phone) throw new Error('no_phone');
           await sendWhatsApp(input.settings, input.recipient.phone, text, input.docs.length === 1 && input.docs[0].fileKey ? `${link!.url}/${input.docs[0].id}` : undefined);

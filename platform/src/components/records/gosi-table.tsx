@@ -5,7 +5,7 @@ import { DataTable, type Column } from '@/components/ui/data-table';
 import { Money, Pill } from '@/components/ui/card';
 import { useI18n } from '@/lib/i18n/client';
 import { fmtNumber } from '@/lib/i18n/format';
-import { ArchiveButton, RecordEditor, RestoreButton } from './record-editor';
+import { RecordEditor, RestoreButton, RowActions } from './record-editor';
 import { expiryText } from '@/components/ui/expiry';
 
 export interface GosiVM {
@@ -104,7 +104,10 @@ export function GosiTable({ rows, canEdit }: { rows: GosiVM[]; canEdit: boolean 
       header: '',
       cell: (r) =>
         r.recordStatus === 'archived' ? (
-          <RestoreButton kind="gosi" id={r.id} canEdit={canEdit} />
+          <div className="flex gap-2">
+            <RestoreButton kind="gosi" id={r.id} canEdit={canEdit} />
+            <RowActions kind="gosi" id={r.id} name={r.name} canEdit={canEdit} archived />
+          </div>
         ) : (
           <div className="flex gap-2">
             <RecordEditor
@@ -127,7 +130,7 @@ export function GosiTable({ rows, canEdit }: { rows: GosiVM[]; canEdit: boolean 
                 { name: 'probationReviewedAt', label: t.gosi.markReviewed, type: 'bool', value: r.probationReviewed },
               ]}
             />
-            {r.recordStatus === 'missing' ? <ArchiveButton kind="gosi" id={r.id} name={r.name} canEdit={canEdit} /> : null}
+            <RowActions kind="gosi" id={r.id} name={r.name} canEdit={canEdit} />
           </div>
         ),
     },

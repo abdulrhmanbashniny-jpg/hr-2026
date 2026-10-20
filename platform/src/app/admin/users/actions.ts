@@ -1,6 +1,6 @@
 'use server';
 
-import { and, count, eq, inArray, isNull, ne } from 'drizzle-orm';
+import { and, eq, inArray, isNull, ne } from 'drizzle-orm';
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 import { db } from '@/db';
@@ -8,7 +8,10 @@ import { memberships, passwordResets, sessions, tenants, users } from '@/db/sche
 import type { ActionResult } from '@/lib/action-result';
 import { runAction, str } from '@/lib/actions';
 import { audit } from '@/lib/audit';
-import { requireSuperAdmin } from '@/lib/auth/guards';
+import { staffCan } from '@/lib/admin/staff';
+import { isLastOwner } from '@/lib/admin/team';
+import { ForbiddenError, requireStaff } from '@/lib/auth/guards';
+import type { SessionContext } from '@/lib/auth/session';
 import { hashPassword, passwordProblem } from '@/lib/auth/password';
 import { randomToken, sha256 } from '@/lib/crypto';
 import { env } from '@/lib/env';
@@ -21,13 +24,24 @@ function refresh(userId: string) {
   revalidatePath(`/admin/users/${userId}`);
 }
 
+/**
+ * Only someone who manages the platform team may act on a team member's account, so a support agent
+ * cannot, say, issue themselves a reset link for an owner.
+ */
+async function guardTarget(actor: SessionContext, userId: string) {
+  if (userId === actor.user.id) return;
+  const [target] = await db.select({ isSuperAdmin: users.isSuperAdmin }).from(users).where(eq(users.id, userId));
+  if (target?.isSuperAdmin && !staffCan(actor.user.staffRole, 'team:manage')) throw new ForbiddenError('forbidden');
+}
+
 async function revokeAll(userId: string) {
   await db.update(sessions).set({ revokedAt: new Date() }).where(and(eq(sessions.userId, userId), isNull(sessions.revokedAt)));
 }
 
 export async function updateUserProfile(userId: string, _prev: ActionResult | null, form: FormData): Promise<ActionResult> {
   return runAction(async () => {
-    const s = await requireSuperAdmin();
+    const s = await requireStaff('users:manage');
+    await guardTarget(s, userId);
     const { t } = await getI18n();
     const name = str(form, 'name');
     const email = str(form, 'email').toLowerCase();
@@ -44,9 +58,11 @@ export async function updateUserProfile(userId: string, _prev: ActionResult | nu
 
 export async function setUserDisabled(userId: string, disabled: boolean): Promise<ActionResult> {
   return runAction(async () => {
-    const s = await requireSuperAdmin();
+    const s = await requireStaff('users:manage');
+    await guardTarget(s, userId);
     const { t } = await getI18n();
     if (userId === s.user.id) return { ok: false, error: t.console.users.cannotSelf };
+    if (disabled && (await isLastOwner(userId))) return { ok: false, error: t.console.users.lastAdmin };
     await db.update(users).set({ disabledAt: disabled ? new Date() : null }).where(eq(users.id, userId));
     if (disabled) await revokeAll(userId);
     await audit({ tenantId: null, userId: s.user.id, action: disabled ? 'admin.user_disabled' : 'admin.user_enabled', entityType: 'user', entityId: userId, summary: disabled ? 'إيقاف حساب مستخدم' : 'تفعيل حساب مستخدم' });
@@ -57,7 +73,8 @@ export async function setUserDisabled(userId: string, disabled: boolean): Promis
 
 export async function revokeUserSessions(userId: string): Promise<ActionResult> {
   return runAction(async () => {
-    const s = await requireSuperAdmin();
+    const s = await requireStaff('users:support');
+    await guardTarget(s, userId);
     const { t } = await getI18n();
     if (userId === s.user.id) return { ok: false, error: t.console.users.cannotSelf };
     await revokeAll(userId);
@@ -69,7 +86,7 @@ export async function revokeUserSessions(userId: string): Promise<ActionResult> 
 
 export async function revokeSession(sessionId: string): Promise<ActionResult> {
   return runAction(async () => {
-    const s = await requireSuperAdmin();
+    const s = await requireStaff('users:support');
     const { t } = await getI18n();
     if (sessionId === s.sessionId) return { ok: false, error: t.console.users.cannotSelf };
     const [row] = await db.update(sessions).set({ revokedAt: new Date() }).where(eq(sessions.id, sessionId)).returning({ userId: sessions.userId });
@@ -80,14 +97,11 @@ export async function revokeSession(sessionId: string): Promise<ActionResult> {
 
 export async function setSuperAdmin(userId: string, grant: boolean): Promise<ActionResult> {
   return runAction(async () => {
-    const s = await requireSuperAdmin();
+    const s = await requireStaff('team:manage');
     const { t } = await getI18n();
     if (!grant && userId === s.user.id) return { ok: false, error: t.console.users.cannotSelf };
-    if (!grant) {
-      const [{ n }] = await db.select({ n: count() }).from(users).where(and(eq(users.isSuperAdmin, true), ne(users.id, userId)));
-      if (n === 0) return { ok: false, error: t.console.users.lastAdmin };
-    }
-    await db.update(users).set({ isSuperAdmin: grant }).where(eq(users.id, userId));
+    if (!grant && (await isLastOwner(userId))) return { ok: false, error: t.console.users.lastAdmin };
+    await db.update(users).set({ isSuperAdmin: grant, staffRole: grant ? 'admin' : null }).where(eq(users.id, userId));
     await audit({ tenantId: null, userId: s.user.id, action: grant ? 'admin.admin_granted' : 'admin.admin_revoked', entityType: 'user', entityId: userId, summary: grant ? 'منح صلاحية مدير المنصة' : 'سحب صلاحية مدير المنصة' });
     refresh(userId);
     return { ok: true, message: grant ? t.console.users.adminGranted : t.console.users.adminRevoked };
@@ -96,7 +110,8 @@ export async function setSuperAdmin(userId: string, grant: boolean): Promise<Act
 
 export async function createResetLink(userId: string): Promise<ActionResult<{ link: string; emailed: boolean }>> {
   return runAction(async () => {
-    const s = await requireSuperAdmin();
+    const s = await requireStaff('users:support');
+    await guardTarget(s, userId);
     const { t } = await getI18n();
     const [user] = await db.select().from(users).where(eq(users.id, userId));
     if (!user) return { ok: false, error: t.common.error };
@@ -104,7 +119,7 @@ export async function createResetLink(userId: string): Promise<ActionResult<{ li
     await db.insert(passwordResets).values({ userId, tokenHash: sha256(token), expiresAt: new Date(Date.now() + 60 * 60_000) });
     const link = `${env.appUrl}/reset-password/${token}`;
     let emailed = false;
-    if (emailEnabled(null)) {
+    if (await emailEnabled(null)) {
       emailed = await sendEmail(null, {
         to: user.email,
         subject: 'متابعة · إعادة تعيين كلمة المرور',
@@ -121,7 +136,8 @@ export async function createResetLink(userId: string): Promise<ActionResult<{ li
 
 export async function setUserPassword(userId: string, _prev: ActionResult | null, form: FormData): Promise<ActionResult> {
   return runAction(async () => {
-    const s = await requireSuperAdmin();
+    const s = await requireStaff('users:manage');
+    await guardTarget(s, userId);
     const { t } = await getI18n();
     const password = str(form, 'password');
     const problem = passwordProblem(password);
@@ -136,15 +152,13 @@ export async function setUserPassword(userId: string, _prev: ActionResult | null
 
 export async function deleteUser(userId: string): Promise<ActionResult> {
   const result = await runAction(async () => {
-    const s = await requireSuperAdmin();
+    const s = await requireStaff('users:manage');
+    await guardTarget(s, userId);
     const { t } = await getI18n();
     if (userId === s.user.id) return { ok: false, error: t.console.users.cannotSelf };
     const [user] = await db.select().from(users).where(eq(users.id, userId));
     if (!user) return { ok: false, error: t.common.error };
-    if (user.isSuperAdmin) {
-      const [{ n }] = await db.select({ n: count() }).from(users).where(and(eq(users.isSuperAdmin, true), ne(users.id, userId)));
-      if (n === 0) return { ok: false, error: t.console.users.lastAdmin };
-    }
+    if (await isLastOwner(userId)) return { ok: false, error: t.console.users.lastAdmin };
     const owned = await db.select({ tenantId: memberships.tenantId }).from(memberships).where(and(eq(memberships.userId, userId), eq(memberships.role, 'owner')));
     if (owned.length) {
       const others = await db

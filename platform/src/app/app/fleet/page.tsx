@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { FleetTable, type VehicleVM } from '@/components/records/fleet-table';
 import { ActiveFilter, StatusTabs } from '@/components/records/status-tabs';
 import { BarList } from '@/components/ui/bar-list';
+import { AddRecordButton } from '@/components/records/record-editor';
 import { Card, PageHead } from '@/components/ui/card';
 import { Kpi } from '@/components/ui/kpi';
 import { ExpiryMatrix } from '@/components/ui/matrix';
@@ -83,10 +84,13 @@ export default async function FleetPage(props: PageProps<'/app/fleet'>) {
         title={t.fleet.title}
         sub={t.fleet.subtitle}
         actions={
-          <Link href="/app/imports#vehicles" className="ui-btn ui-btn--primary">
-            <Upload size={18} />
-            {t.nav.imports}
-          </Link>
+          <>
+            <AddRecordButton kind="vehicles" canEdit={can(s.role, 'fleet:write') && (s.subscription?.canWrite ?? true)} />
+            <Link href="/app/imports#vehicles" className="ui-btn ui-btn--primary">
+              <Upload size={18} />
+              {t.nav.imports}
+            </Link>
+          </>
         }
       />
       <div className="kpi-grid">

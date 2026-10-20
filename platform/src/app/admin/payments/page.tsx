@@ -4,8 +4,10 @@ import { Card, PageHead } from '@/components/ui/card';
 import { db } from '@/db';
 import { payments, plans, tenants } from '@/db/schema';
 import { getI18n } from '@/lib/i18n';
+import { requireSuperAdmin } from '@/lib/auth/guards';
 
 export default async function AdminPayments() {
+  await requireSuperAdmin('billing:manage');
   const { t, locale } = await getI18n();
   const rows = await db
     .select({ p: payments, tenant: tenants.name, planAr: plans.nameAr, planEn: plans.nameEn })

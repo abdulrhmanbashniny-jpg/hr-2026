@@ -310,7 +310,7 @@ export function SystemPanel({ status }: { status: { telegram: boolean; botUserna
         {row('Storage driver', true, status.storage)}
         {row('CRON_SECRET', status.cron)}
       </ul>
-      {!status.telegram ? <Notice tone="amber">{t.settings.botNotConfigured}</Notice> : null}
+      {!status.telegram ? <Notice tone="blue">{t.console.system.platformBotOff}</Notice> : null}
       <div className="flex flex-wrap gap-2">
         <button type="button" className="ui-btn ui-btn--primary" disabled={pending || !status.telegram} onClick={() => run(() => registerTelegramWebhook())}>
           {t.admin.setWebhook}

@@ -171,7 +171,7 @@ export async function shareDocumentsAction(_prev: ActionResult<ShareActionData> 
     const channels = form.getAll('channels').map(String).filter((c): c is ShareChannel => c === 'email' || c === 'telegram' || c === 'whatsapp');
     if (!channels.length) return { ok: false, error: `${t.documents.channels}: ${t.common.required}` };
     const mode = str(form, 'mode') === 'attachment' ? 'attachment' : 'link';
-    const hours = SHARE_EXPIRY_HOURS.includes(num(form, 'expiresInHours') as (typeof SHARE_EXPIRY_HOURS)[number]) ? num(form, 'expiresInHours') : 24;
+    const hours = SHARE_EXPIRY_HOURS.includes(num(form, 'expiresInHours', 24) as (typeof SHARE_EXPIRY_HOURS)[number]) ? num(form, 'expiresInHours', 24) : 24;
 
     let recipient: { name: string; email?: string | null; phone?: string | null; telegramChatId?: string | null };
     const contactId = optStr(form, 'contactId');
@@ -201,7 +201,7 @@ export async function shareDocumentsAction(_prev: ActionResult<ShareActionData> 
       action: 'document.shared',
       entityType: 'document',
       entityId: docs.length === 1 ? docs[0].id : undefined,
-      summary: `مشاركة ${docs.map((d) => `«${d.title}»`).join('، ')} مع ${recipient.name} عبر ${channels.join('/')} (${mode === 'link' ? `رابط ${hours} ساعة` : 'مرفقات'})`,
+      summary: `مشاركة ${docs.map((d) => `«${d.title}»`).join('، ')} مع ${recipient.name} عبر ${channels.join('/')} (${mode === 'link' ? (hours ? `رابط ${hours} ساعة` : 'رابط دائم') : 'مرفقات'})`,
       metadata: { results: results.map((r) => ({ channel: r.channel, ok: r.ok, error: r.error })) },
     });
     revalidatePath('/app/documents');

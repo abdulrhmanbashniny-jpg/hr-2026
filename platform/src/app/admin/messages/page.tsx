@@ -6,6 +6,7 @@ import { announcements, plans, subscriptions, tenants, users } from '@/db/schema
 import { audienceMatches } from '@/lib/admin/announcements';
 import { getI18n } from '@/lib/i18n';
 import { emailEnabled } from '@/lib/notifications/email';
+import { requireSuperAdmin } from '@/lib/auth/guards';
 
 export async function generateMetadata() {
   const { t } = await getI18n();
@@ -13,6 +14,7 @@ export async function generateMetadata() {
 }
 
 export default async function AdminMessages() {
+  await requireSuperAdmin('messages:send');
   const { t, locale } = await getI18n();
   const m = t.console.messages;
   const [planRows, tenantRows, rows] = await Promise.all([
@@ -56,7 +58,7 @@ export default async function AdminMessages() {
         plans={planRows.map((p) => ({ id: p.id, name: locale === 'ar' ? p.nameAr : p.nameEn }))}
         tenants={tenantRows.map((x) => ({ id: x.id, name: x.name }))}
         counts={{ all: count('all'), trialing: count('trialing'), active: count('active'), expired: count('expired') }}
-        emailEnabled={emailEnabled(null)}
+        emailEnabled={await emailEnabled(null)}
         history={history}
       />
     </>

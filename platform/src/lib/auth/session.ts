@@ -8,6 +8,7 @@ import { env } from '@/lib/env';
 import { resolveSettings } from '@/lib/settings';
 import { subscriptionState } from '@/lib/billing/state';
 import type { Role } from './rbac';
+import { staffRoleOf, type StaffRole } from '@/lib/admin/staff';
 
 export const SESSION_COOKIE = 'mutabaa_session';
 const SESSION_DAYS = 30;
@@ -74,7 +75,7 @@ export async function setActiveTenant(tenantId: string | null) {
 
 export interface SessionContext {
   sessionId: string;
-  user: { id: string; email: string; name: string; phone: string | null; isSuperAdmin: boolean; locale: string };
+  user: { id: string; email: string; name: string; phone: string | null; isSuperAdmin: boolean; staffRole: StaffRole | null; locale: string };
   tenant: { id: string; name: string; slug: string; crNumber: string | null; suspended: boolean } | null;
   role: Role | null;
   settings: ReturnType<typeof resolveSettings>;
@@ -119,7 +120,7 @@ export const getSession = cache(async (): Promise<SessionContext | null> => {
   }
   return {
     sessionId: s.id,
-    user: { id: user.id, email: user.email, name: user.name, phone: user.phone, isSuperAdmin: user.isSuperAdmin, locale: user.locale },
+    user: { id: user.id, email: user.email, name: user.name, phone: user.phone, isSuperAdmin: user.isSuperAdmin, staffRole: staffRoleOf(user), locale: user.locale },
     tenant,
     role: supportMode && tenant ? 'owner' : ((ms.find((m) => m.tenantId === activeId)?.role as Role | undefined) ?? null),
     settings,

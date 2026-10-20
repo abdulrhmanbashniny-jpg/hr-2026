@@ -5,6 +5,7 @@ import { Card, PageHead } from '@/components/ui/card';
 import { db } from '@/db';
 import { auditLogs, documents, gosiSubscribers, memberships, plans, residents, subscriptions, tenants, users, vehicles } from '@/db/schema';
 import { countOf, f, getI18n } from '@/lib/i18n';
+import { requireSuperAdmin } from '@/lib/auth/guards';
 
 export async function generateMetadata() {
   const { t } = await getI18n();
@@ -19,6 +20,7 @@ async function countBy(table: typeof residents | typeof gosiSubscribers | typeof
 }
 
 export default async function AdminTenants() {
+  await requireSuperAdmin('tenants:view');
   const { t, locale } = await getI18n();
   const [rows, subs, planRows, memberCounts, owners, lastSeen, res, gosi, veh, docs] = await Promise.all([
     db.select().from(tenants).orderBy(desc(tenants.createdAt)),

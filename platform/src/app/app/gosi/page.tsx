@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { GosiTable, type GosiVM } from '@/components/records/gosi-table';
 import { StatusTabs } from '@/components/records/status-tabs';
 import { BarList } from '@/components/ui/bar-list';
+import { AddRecordButton } from '@/components/records/record-editor';
 import { Card, PageHead } from '@/components/ui/card';
 import { Kpi } from '@/components/ui/kpi';
 import { db } from '@/db';
@@ -67,10 +68,13 @@ export default async function GosiPage(props: PageProps<'/app/gosi'>) {
         title={t.gosi.title}
         sub={t.gosi.subtitle}
         actions={
-          <Link href="/app/imports#gosi" className="ui-btn ui-btn--primary">
-            <Upload size={18} />
-            {t.nav.imports}
-          </Link>
+          <>
+            <AddRecordButton kind="gosi" canEdit={can(s.role, 'people:write') && (s.subscription?.canWrite ?? true)} />
+            <Link href="/app/imports#gosi" className="ui-btn ui-btn--primary">
+              <Upload size={18} />
+              {t.nav.imports}
+            </Link>
+          </>
         }
       />
       <div className="kpi-grid">

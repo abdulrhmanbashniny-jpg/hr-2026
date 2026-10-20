@@ -8,7 +8,7 @@ import { documents, memberships, plans, sessions, subscriptions, tenantNotes, te
 import type { ActionResult } from '@/lib/action-result';
 import { num, runAction, str } from '@/lib/actions';
 import { audit } from '@/lib/audit';
-import { requireSuperAdmin } from '@/lib/auth/guards';
+import { requireStaff, requireSuperAdmin } from '@/lib/auth/guards';
 import { hashPassword, passwordProblem } from '@/lib/auth/password';
 import type { Role } from '@/lib/auth/rbac';
 import { setActiveTenant } from '@/lib/auth/session';
@@ -36,7 +36,7 @@ async function tenantOr404(tenantId: string) {
 
 export async function extendTrial(tenantId: string, _prev: ActionResult | null, form: FormData): Promise<ActionResult> {
   return runAction(async () => {
-    const s = await requireSuperAdmin();
+    const s = await requireStaff('billing:manage');
     const { t } = await getI18n();
     const days = Math.min(365, Math.max(1, Math.trunc(num(form, 'days', 7))));
     const [sub] = await db.select().from(subscriptions).where(eq(subscriptions.tenantId, tenantId));
@@ -52,7 +52,7 @@ export async function extendTrial(tenantId: string, _prev: ActionResult | null, 
 
 export async function updateSubscription(tenantId: string, _prev: ActionResult | null, form: FormData): Promise<ActionResult> {
   return runAction(async () => {
-    const s = await requireSuperAdmin();
+    const s = await requireStaff('billing:manage');
     const { t } = await getI18n();
     const planId = str(form, 'planId') || null;
     if (planId) {
@@ -82,7 +82,7 @@ export async function updateSubscription(tenantId: string, _prev: ActionResult |
 
 export async function toggleSuspend(tenantId: string): Promise<ActionResult> {
   return runAction(async () => {
-    const s = await requireSuperAdmin();
+    const s = await requireStaff('tenants:manage');
     const { t } = await getI18n();
     const tenant = await tenantOr404(tenantId);
     if (!tenant) return { ok: false, error: t.common.error };
@@ -95,7 +95,7 @@ export async function toggleSuspend(tenantId: string): Promise<ActionResult> {
 
 export async function updateTenant(tenantId: string, _prev: ActionResult | null, form: FormData): Promise<ActionResult> {
   return runAction(async () => {
-    const s = await requireSuperAdmin();
+    const s = await requireStaff('tenants:manage');
     const { t } = await getI18n();
     const name = str(form, 'name');
     const crNumber = str(form, 'crNumber');
@@ -109,7 +109,7 @@ export async function updateTenant(tenantId: string, _prev: ActionResult | null,
 
 export async function deleteTenant(tenantId: string, _prev: ActionResult | null, form: FormData): Promise<ActionResult> {
   const result = await runAction(async () => {
-    const s = await requireSuperAdmin();
+    const s = await requireStaff('tenants:delete');
     const { t } = await getI18n();
     const tenant = await tenantOr404(tenantId);
     if (!tenant) return { ok: false, error: t.common.error };
@@ -127,7 +127,7 @@ export async function deleteTenant(tenantId: string, _prev: ActionResult | null,
 
 /** Support access: the admin works inside the company's workspace as themselves, with owner rights. */
 export async function enterWorkspace(tenantId: string): Promise<void> {
-  const s = await requireSuperAdmin();
+  const s = await requireSuperAdmin('tenants:enter');
   const tenant = await tenantOr404(tenantId);
   if (!tenant) redirect('/admin/tenants');
   await setActiveTenant(tenantId);
@@ -137,7 +137,7 @@ export async function enterWorkspace(tenantId: string): Promise<void> {
 
 export async function addTenantNote(tenantId: string, _prev: ActionResult | null, form: FormData): Promise<ActionResult> {
   return runAction(async () => {
-    const s = await requireSuperAdmin();
+    const s = await requireStaff('tenants:notes');
     const { t } = await getI18n();
     const body = str(form, 'body').slice(0, 4000);
     if (!body) return { ok: false, error: t.common.required };
@@ -149,7 +149,7 @@ export async function addTenantNote(tenantId: string, _prev: ActionResult | null
 
 export async function deleteTenantNote(noteId: string): Promise<ActionResult> {
   return runAction(async () => {
-    await requireSuperAdmin();
+    await requireStaff('tenants:notes');
     const { t } = await getI18n();
     const [note] = await db.delete(tenantNotes).where(eq(tenantNotes.id, noteId)).returning({ tenantId: tenantNotes.tenantId });
     refresh(note?.tenantId);
@@ -167,7 +167,7 @@ async function ownersOf(tenantId: string, exceptMembershipId?: string) {
 
 export async function addMember(tenantId: string, _prev: ActionResult | null, form: FormData): Promise<ActionResult> {
   return runAction(async () => {
-    const s = await requireSuperAdmin();
+    const s = await requireStaff('tenants:manage');
     const { t } = await getI18n();
     const email = str(form, 'email').toLowerCase();
     const name = str(form, 'name');
@@ -192,7 +192,7 @@ export async function addMember(tenantId: string, _prev: ActionResult | null, fo
 
 export async function changeMemberRole(membershipId: string, _prev: ActionResult | null, form: FormData): Promise<ActionResult> {
   return runAction(async () => {
-    const s = await requireSuperAdmin();
+    const s = await requireStaff('tenants:manage');
     const { t } = await getI18n();
     const role = str(form, 'role') as Role;
     const [m] = await db.select().from(memberships).where(eq(memberships.id, membershipId));
@@ -207,7 +207,7 @@ export async function changeMemberRole(membershipId: string, _prev: ActionResult
 
 export async function removeMember(membershipId: string): Promise<ActionResult> {
   return runAction(async () => {
-    const s = await requireSuperAdmin();
+    const s = await requireStaff('tenants:manage');
     const { t } = await getI18n();
     const [m] = await db.select().from(memberships).where(eq(memberships.id, membershipId));
     if (!m) return { ok: false, error: t.common.error };

@@ -12,6 +12,7 @@ import { useToast } from '@/components/ui/toast';
 import type { ActionResult } from '@/lib/action-result';
 import { useI18n } from '@/lib/i18n/client';
 import { f, fmtDate } from '@/lib/i18n/format';
+import type { StaffPermission } from '@/lib/admin/staff';
 
 export interface UserDetailVM {
   id: string;
@@ -50,7 +51,7 @@ function useRun() {
   };
 }
 
-export function UserConsole({ vm }: { vm: UserDetailVM }) {
+export function UserConsole({ vm, can }: { vm: UserDetailVM; can: Record<StaffPermission, boolean> }) {
   const { t, locale } = useI18n();
   const c = t.console.users;
   const toast = useToast();
@@ -83,6 +84,7 @@ export function UserConsole({ vm }: { vm: UserDetailVM }) {
       <div className="grid-main">
         <div className="stack">
           <Card title={c.profile}>
+            <fieldset disabled={!can['users:manage']} className="contents">
             <form action={profileAction} className="grid gap-4 md:grid-cols-2">
               <Field label={c.name} htmlFor="u-name" required>
                 <input id="u-name" name="name" defaultValue={vm.name} required minLength={2} className="ui-input" />
@@ -97,6 +99,7 @@ export function UserConsole({ vm }: { vm: UserDetailVM }) {
                 <SubmitButton className="w-full">{t.common.save}</SubmitButton>
               </div>
             </form>
+            </fieldset>
           </Card>
 
           <Card title={c.memberships} flat>
@@ -120,7 +123,7 @@ export function UserConsole({ vm }: { vm: UserDetailVM }) {
           <Card
             title={c.sessions}
             action={
-              vm.sessions.length && !vm.isSelf ? (
+              vm.sessions.length && !vm.isSelf && can['users:support'] ? (
                 <button type="button" className="ui-btn ui-btn--outline ui-btn--sm" disabled={pending} onClick={() => run(() => revokeUserSessions(vm.id))}>
                   <LogOut size={15} />
                   {c.revokeAll}
@@ -160,7 +163,7 @@ export function UserConsole({ vm }: { vm: UserDetailVM }) {
               <button
                 type="button"
                 className="ui-btn ui-btn--outline ui-btn--block"
-                disabled={pending}
+                disabled={pending || !can['users:support']}
                 onClick={async () => {
                   const r = await createResetLink(vm.id);
                   if (r.ok && r.data) {
@@ -172,16 +175,20 @@ export function UserConsole({ vm }: { vm: UserDetailVM }) {
                 <Link2 size={16} />
                 {c.resetLink}
               </button>
-              <button type="button" className="ui-btn ui-btn--outline ui-btn--block" onClick={() => setDialog('password')}>
+              <button type="button" className="ui-btn ui-btn--outline ui-btn--block" disabled={!can['users:manage']} onClick={() => setDialog('password')}>
                 <KeyRound size={16} />
                 {c.setPassword}
               </button>
               {vm.isSelf ? null : (
                 <>
-                  <button type="button" className="ui-btn ui-btn--outline ui-btn--block" disabled={pending} onClick={() => window.confirm(`${vm.isSuperAdmin ? c.removeAdmin : c.makeAdmin}?`) && run(() => setSuperAdmin(vm.id, !vm.isSuperAdmin))}>
-                    {vm.isSuperAdmin ? <ShieldOff size={16} /> : <ShieldCheck size={16} />}
-                    {vm.isSuperAdmin ? c.removeAdmin : c.makeAdmin}
-                  </button>
+                  {can['team:manage'] ? (
+                    <button type="button" className="ui-btn ui-btn--outline ui-btn--block" disabled={pending} onClick={() => window.confirm(`${vm.isSuperAdmin ? c.removeAdmin : c.makeAdmin}?`) && run(() => setSuperAdmin(vm.id, !vm.isSuperAdmin))}>
+                      {vm.isSuperAdmin ? <ShieldOff size={16} /> : <ShieldCheck size={16} />}
+                      {vm.isSuperAdmin ? c.removeAdmin : c.makeAdmin}
+                    </button>
+                  ) : null}
+                  {can['users:manage'] ? (
+                  <>
                   <button type="button" className={`ui-btn ui-btn--block ${vm.disabled ? 'ui-btn--outline' : 'ui-btn--danger'}`} disabled={pending} onClick={() => window.confirm(`${vm.disabled ? c.enable : c.disable}: ${vm.name}?`) && run(() => setUserDisabled(vm.id, !vm.disabled))}>
                     {vm.disabled ? <UserCheck size={16} /> : <Ban size={16} />}
                     {vm.disabled ? c.enable : c.disable}
@@ -190,6 +197,8 @@ export function UserConsole({ vm }: { vm: UserDetailVM }) {
                     <Trash2 size={16} />
                     {c.delete}
                   </button>
+                  </>
+                  ) : null}
                 </>
               )}
             </div>

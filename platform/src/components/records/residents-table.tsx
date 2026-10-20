@@ -6,7 +6,7 @@ import { DataTable, type Column } from '@/components/ui/data-table';
 import { Pill } from '@/components/ui/card';
 import { daysUntil } from '@/lib/dates';
 import { useI18n } from '@/lib/i18n/client';
-import { ArchiveButton, RecordEditor, RestoreButton } from './record-editor';
+import { RecordEditor, RestoreButton, RowActions } from './record-editor';
 
 export interface ResidentVM {
   id: string;
@@ -54,7 +54,10 @@ export function ResidentsTable({ rows, today, canEdit }: { rows: ResidentVM[]; t
       header: '',
       cell: (r) =>
         r.recordStatus === 'archived' ? (
-          <RestoreButton kind="residents" id={r.id} canEdit={canEdit} />
+          <div className="flex gap-2">
+            <RestoreButton kind="residents" id={r.id} canEdit={canEdit} />
+            <RowActions kind="residents" id={r.id} name={r.name} canEdit={canEdit} archived />
+          </div>
         ) : (
           <div className="flex gap-2">
             <RecordEditor
@@ -69,7 +72,7 @@ export function ResidentsTable({ rows, today, canEdit }: { rows: ResidentVM[]; t
                 { name: 'outsideKingdom', label: t.residents.outside, type: 'bool', value: r.outsideKingdom },
               ]}
             />
-            {r.recordStatus === 'missing' ? <ArchiveButton kind="residents" id={r.id} name={r.name} canEdit={canEdit} /> : null}
+            <RowActions kind="residents" id={r.id} name={r.name} canEdit={canEdit} />
           </div>
         ),
     },

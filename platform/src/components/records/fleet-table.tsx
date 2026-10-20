@@ -7,7 +7,7 @@ import { Pill } from '@/components/ui/card';
 import type { Readiness } from '@/lib/analytics/fleet';
 import type { OpCardReason } from '@/lib/rules/classify';
 import { useI18n } from '@/lib/i18n/client';
-import { ArchiveButton, RecordEditor, RestoreButton } from './record-editor';
+import { RecordEditor, RestoreButton, RowActions } from './record-editor';
 
 export interface VehicleVM {
   id: string;
@@ -111,7 +111,10 @@ export function FleetTable({ rows, today, canEdit }: { rows: VehicleVM[]; today:
       header: '',
       cell: (r) =>
         r.recordStatus === 'archived' ? (
-          <RestoreButton kind="vehicles" id={r.id} canEdit={canEdit} />
+          <div className="flex gap-2">
+            <RestoreButton kind="vehicles" id={r.id} canEdit={canEdit} />
+            <RowActions kind="vehicles" id={r.id} name={r.plateNumber ?? r.sequenceNumber} canEdit={canEdit} archived />
+          </div>
         ) : (
           <div className="flex gap-2">
             <RecordEditor
@@ -145,7 +148,7 @@ export function FleetTable({ rows, today, canEdit }: { rows: VehicleVM[]; today:
                 },
               ]}
             />
-            {r.recordStatus === 'missing' ? <ArchiveButton kind="vehicles" id={r.id} name={r.plateNumber ?? r.sequenceNumber} canEdit={canEdit} isVehicle /> : null}
+            <RowActions kind="vehicles" id={r.id} name={r.plateNumber ?? r.sequenceNumber} canEdit={canEdit} />
           </div>
         ),
     },

@@ -214,9 +214,14 @@ export function ShareDialog({ docs, contacts, channels, onClose }: { docs: Docum
             <Field label={t.documents.linkExpiry} htmlFor="share-exp">
               <select id="share-exp" name="expiresInHours" className="ui-select" defaultValue="24">
                 <option value="1">{t.documents.hours1}</option>
+                <option value="3">{t.documents.hours3}</option>
+                <option value="6">{t.documents.hours6}</option>
+                <option value="12">{t.documents.hours12}</option>
                 <option value="24">{t.documents.hours24}</option>
                 <option value="72">{t.documents.hours72}</option>
                 <option value="168">{t.documents.hours168}</option>
+                <option value="720">{t.documents.hours720}</option>
+                <option value="0">{t.documents.permanent}</option>
               </select>
             </Field>
           </div>

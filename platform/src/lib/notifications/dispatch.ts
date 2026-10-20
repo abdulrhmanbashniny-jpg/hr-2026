@@ -20,7 +20,7 @@ import { subscriptionState, PAST_DUE_GRACE_DAYS } from '@/lib/billing/state';
 import { syncTenantAlerts } from '@/lib/rules/sync';
 import { resolveSettings, type TenantSettings } from '@/lib/settings';
 import { emailEnabled, emailLayout, escapeHtml as escapeEmail, sendEmail } from './email';
-import { escapeHtml, sendMessage, telegramEnabled } from './telegram';
+import { botFor, escapeHtml, sendMessage } from './telegram';
 import { sendWhatsApp, whatsappAutomatic } from './whatsapp';
 
 type Alert = typeof complianceAlerts.$inferSelect;
@@ -154,13 +154,14 @@ export async function dispatchTenant(tenantId: string, today = todayRiyadh(), op
     }
   }
 
-  const tgOn = telegramEnabled();
+  const tgBot = botFor(settings, tenantId);
+  const tgActions = settings.telegram.allowActions;
   const waOn = whatsappAutomatic(settings);
-  const mailOn = emailEnabled(settings);
+  const mailOn = await emailEnabled(settings);
 
   for (const { contact, items } of perContact.values()) {
     // Telegram: individual messages with action buttons for the most urgent, a digest for the rest.
-    if (tgOn && contact.telegramChatId) {
+    if (tgBot && contact.telegramChatId) {
       const fresh: { alert: Alert; claim: string }[] = [];
       for (const it of items) {
         const claim = await claimDelivery(tenantId, it.key, 'telegram', contact.id);
@@ -169,11 +170,15 @@ export async function dispatchTenant(tenantId: string, today = todayRiyadh(), op
       for (const [i, f] of fresh.entries()) {
         try {
           if (i < MAX_INDIVIDUAL_TELEGRAM) {
-            await sendMessage(contact.telegramChatId, telegramText(f.alert), [
-              [
-                { text: '✅ تم التجديد', callback_data: `r:${f.alert.id}` },
-                { text: '⏰ تأجيل 3 أيام', callback_data: `s:${f.alert.id}` },
-              ],
+            await sendMessage(tgBot, contact.telegramChatId, telegramText(f.alert), [
+              ...(tgActions
+                ? [
+                    [
+                      { text: '✅ تم التجديد', callback_data: `r:${f.alert.id}` },
+                      { text: '⏰ تأجيل 3 أيام', callback_data: `s:${f.alert.id}` },
+                    ],
+                  ]
+                : []),
               [{ text: 'فتح في المنصة', url: `${env.appUrl}${f.alert.link ?? '/app/alerts'}` }],
             ]);
           }
@@ -188,6 +193,7 @@ export async function dispatchTenant(tenantId: string, today = todayRiyadh(), op
         const lines = rest.slice(0, 30).map((f) => `${SEVERITY_ICON[f.alert.severity]} ${escapeHtml(f.alert.titleAr)} — ${escapeHtml(f.alert.entityLabel)}`);
         try {
           await sendMessage(
+            tgBot,
             contact.telegramChatId,
             `<b>${rest.length} تنبيهات أخرى لـ ${escapeHtml(tenant.name)}</b>\n${lines.join('\n')}${rest.length > 30 ? '\n…' : ''}`,
             [[{ text: 'عرض كل التنبيهات', url: `${env.appUrl}/app/alerts` }]],
@@ -251,13 +257,34 @@ export async function dispatchTenant(tenantId: string, today = todayRiyadh(), op
     }
   }
 
+  // Company group chat: one digest per run of everything newly due.
+  const group = settings.telegram.groupChatId;
+  if (tgBot && group) {
+    const fresh: { alert: Alert; claim: string }[] = [];
+    for (const it of due) {
+      if (it.alert.severity === 'info') continue;
+      const claim = await claimDelivery(tenantId, it.key, 'telegram', `group:${group}`);
+      if (claim) fresh.push({ alert: it.alert, claim });
+    }
+    if (fresh.length) {
+      const lines = fresh.slice(0, 40).map((f) => `${SEVERITY_ICON[f.alert.severity]} ${escapeHtml(f.alert.titleAr)} — ${escapeHtml(f.alert.entityLabel)}`);
+      try {
+        await sendMessage(tgBot, group, `<b>تنبيهات ${escapeHtml(tenant.name)} المستحقة اليوم (${fresh.length})</b>\n${lines.join('\n')}${fresh.length > 40 ? '\n…' : ''}`, [[{ text: 'عرض كل التنبيهات', url: `${env.appUrl}/app/alerts` }]]);
+        stats.telegram += fresh.length;
+      } catch (err) {
+        stats.failed += fresh.length;
+        for (const f of fresh) await markFailed(f.claim, err);
+      }
+    }
+  }
+
   return stats;
 }
 
 /** Weekly e-mail report for contacts who opted in. */
 export async function sendWeeklyReport(tenantId: string, settings: TenantSettings, today: string) {
   const [tenant] = await db.select().from(tenants).where(eq(tenants.id, tenantId));
-  if (!tenant || !emailEnabled(settings)) return 0;
+  if (!tenant || !(await emailEnabled(settings))) return 0;
   const recipients = await db
     .select()
     .from(contacts)

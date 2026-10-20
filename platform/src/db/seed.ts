@@ -129,7 +129,7 @@ async function seedPlatform() {
   const [admin] = await db.select().from(users).where(eq(users.email, adminEmail));
   if (!admin) {
     const password = process.env.SEED_ADMIN_PASSWORD ?? `Admin-${randomToken(9)}`;
-    await db.insert(users).values({ email: adminEmail, name: 'مشرف المنصة', passwordHash: await hashPassword(password), isSuperAdmin: true });
+    await db.insert(users).values({ email: adminEmail, name: 'مشرف المنصة', passwordHash: await hashPassword(password), isSuperAdmin: true, staffRole: 'owner' });
     console.log(`Super admin: ${adminEmail} / ${password}`);
   }
 }

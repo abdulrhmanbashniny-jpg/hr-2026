@@ -8,7 +8,7 @@ import type { ActionResult } from '@/lib/action-result';
 import { runAction, str } from '@/lib/actions';
 import { publishAnnouncement } from '@/lib/admin/announcements';
 import { audit } from '@/lib/audit';
-import { requireSuperAdmin } from '@/lib/auth/guards';
+import { requireStaff } from '@/lib/auth/guards';
 import { countOf, f, getI18n } from '@/lib/i18n';
 
 const LEVELS = ['info', 'success', 'warning', 'critical'] as const;
@@ -17,7 +17,7 @@ const CHANNELS = ['banner', 'in_app', 'email'] as const;
 
 export async function sendAnnouncement(_prev: ActionResult | null, form: FormData): Promise<ActionResult> {
   return runAction(async () => {
-    const s = await requireSuperAdmin();
+    const s = await requireStaff('messages:send');
     const { t, locale } = await getI18n();
     const m = t.console.messages;
     const title = str(form, 'title').slice(0, 160);
@@ -43,7 +43,7 @@ export async function sendAnnouncement(_prev: ActionResult | null, form: FormDat
 
 export async function stopAnnouncement(id: string): Promise<ActionResult> {
   return runAction(async () => {
-    const s = await requireSuperAdmin();
+    const s = await requireStaff('messages:send');
     const { t } = await getI18n();
     await db.update(announcements).set({ archivedAt: new Date() }).where(eq(announcements.id, id));
     await audit({ tenantId: null, userId: s.user.id, action: 'admin.announcement_stopped', entityType: 'announcement', entityId: id, summary: 'إيقاف شريط إعلان' });

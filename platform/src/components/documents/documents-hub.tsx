@@ -49,7 +49,7 @@ export interface LinkVM {
   id: string;
   recipient: string | null;
   channel: string | null;
-  expiresAt: string;
+  expiresAt: string | null;
   accessCount: number;
   titles: string[];
 }
@@ -294,7 +294,7 @@ export function DocumentsHub(props: {
                     </b>
                     <span className="block text-xs text-muted">{l.titles.join('، ')}</span>
                     <span className="block text-xs text-muted">
-                      {t.documents.expires} {fmtDate(l.expiresAt, locale, true)} · {t.documents.accessCount} {l.accessCount}
+                      {l.expiresAt ? `${t.documents.expires} ${fmtDate(l.expiresAt, locale, true)}` : t.documents.permanent} · {t.documents.accessCount} {l.accessCount}
                     </span>
                   </div>
                   {props.canShare ? (

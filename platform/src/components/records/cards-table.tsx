@@ -6,7 +6,7 @@ import { ExpiryBadge } from '@/components/ui/expiry';
 import { Pill } from '@/components/ui/card';
 import { useI18n } from '@/lib/i18n/client';
 import { isActiveCardStatus } from '@/lib/rules/classify';
-import { ArchiveButton, RecordEditor, RestoreButton } from './record-editor';
+import { RecordEditor, RestoreButton, RowActions } from './record-editor';
 
 export interface CardVM {
   id: string;
@@ -50,7 +50,10 @@ export function CardsTable({ kind, rows, today, canEdit }: { kind: 'operating_ca
       header: '',
       cell: (r) =>
         r.recordStatus === 'archived' ? (
-          <RestoreButton kind={kind} id={r.id} canEdit={canEdit} />
+          <div className="flex gap-2">
+            <RestoreButton kind={kind} id={r.id} canEdit={canEdit} />
+            <RowActions kind={kind} id={r.id} name={r.cardNumber} canEdit={canEdit} archived />
+          </div>
         ) : (
           <div className="flex gap-2">
             <RecordEditor
@@ -69,7 +72,7 @@ export function CardsTable({ kind, rows, today, canEdit }: { kind: 'operating_ca
                 },
               ]}
             />
-            {r.recordStatus === 'missing' ? <ArchiveButton kind={kind} id={r.id} name={r.cardNumber} canEdit={canEdit} /> : null}
+            <RowActions kind={kind} id={r.id} name={r.cardNumber} canEdit={canEdit} />
           </div>
         ),
     },

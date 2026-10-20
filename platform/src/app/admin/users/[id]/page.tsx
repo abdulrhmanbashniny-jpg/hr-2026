@@ -5,6 +5,7 @@ import { notFound } from 'next/navigation';
 import { UserConsole, type UserDetailVM } from '@/components/admin/user-console';
 import { db } from '@/db';
 import { auditLogs, memberships, sessions, tenants, users } from '@/db/schema';
+import { staffAbilities } from '@/lib/admin/staff';
 import { requireSuperAdmin } from '@/lib/auth/guards';
 import { getI18n } from '@/lib/i18n';
 
@@ -18,7 +19,7 @@ export async function generateMetadata(props: PageProps<'/admin/users/[id]'>) {
 export default async function AdminUser(props: PageProps<'/admin/users/[id]'>) {
   const { id } = await props.params;
   if (!/^[0-9a-f-]{36}$/.test(id)) notFound();
-  const s = await requireSuperAdmin();
+  const s = await requireSuperAdmin('users:view');
   const { t } = await getI18n();
   const [user] = await db.select().from(users).where(eq(users.id, id));
   if (!user) notFound();
@@ -46,13 +47,16 @@ export default async function AdminUser(props: PageProps<'/admin/users/[id]'>) {
     sessions: ss.map((x) => ({ id: x.id, userAgent: x.userAgent, ip: x.ip, createdAt: x.createdAt.toISOString(), current: x.id === s.sessionId })),
     activity: activity.map(({ a, tenant }) => ({ id: a.id, summary: a.summary, tenant, createdAt: a.createdAt.toISOString() })),
   };
+  // Team members' accounts are handled only by those who manage the team.
+  const can = staffAbilities(s.user.staffRole);
+  if (user.isSuperAdmin && !vm.isSelf && !can['team:manage']) Object.assign(can, { 'users:manage': false, 'users:support': false });
   return (
     <>
       <Link href="/admin/users" className="ui-btn ui-btn--ghost ui-btn--sm self-start">
         <ChevronRight size={16} className="ltr:rotate-180" />
         {t.console.users.back}
       </Link>
-      <UserConsole vm={vm} />
+      <UserConsole vm={vm} can={can} />
     </>
   );
 }

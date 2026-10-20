@@ -4,6 +4,7 @@ import { Card, PageHead } from '@/components/ui/card';
 import { db } from '@/db';
 import { auditLogs, tenants, users } from '@/db/schema';
 import { getI18n } from '@/lib/i18n';
+import { requireSuperAdmin } from '@/lib/auth/guards';
 
 export async function generateMetadata() {
   const { t } = await getI18n();
@@ -11,6 +12,7 @@ export async function generateMetadata() {
 }
 
 export default async function AdminAudit() {
+  await requireSuperAdmin('audit:view');
   const { t } = await getI18n();
   const rows = await db
     .select({ a: auditLogs, tenant: tenants.name, user: users.name })
