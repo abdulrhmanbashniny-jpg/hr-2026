@@ -1,0 +1,46 @@
+@import 'tailwindcss';
+@import '../styles/tokens.css';
+@import '../styles/components.css';
+@import '../styles/app.css';
+
+@custom-variant dark (&:where([data-theme='dark'], [data-theme='dark'] *));
+
+/* Tailwind utilities resolve to the design-system tokens, so `bg-card`, `text-muted`, `gap-16`… stay on-brand. */
+@theme inline {
+  --color-page: var(--surface-page);
+  --color-sunken: var(--surface-sunken);
+  --color-card: var(--surface-card);
+  --color-muted-bg: var(--surface-muted);
+  --color-hover: var(--surface-hover);
+  --color-line: var(--line);
+  --color-line-soft: var(--line-soft);
+  --color-ink: var(--ink);
+  --color-ink-2: var(--ink-2);
+  --color-muted: var(--muted);
+  --color-link: var(--link);
+  --color-accent: var(--accent);
+  --color-accent-strong: var(--accent-strong);
+  --color-gold: var(--gold);
+  --color-teal: var(--teal);
+  --color-inverse: var(--inverse);
+  --color-on-inverse: var(--on-inverse);
+  --color-green-bg: var(--green-bg);
+  --color-green-ink: var(--green-ink);
+  --color-red-bg: var(--red-bg);
+  --color-red-ink: var(--red-ink);
+  --color-amber-bg: var(--amber-bg);
+  --color-amber-ink: var(--amber-ink);
+  --color-blue-bg: var(--blue-bg);
+  --color-blue-ink: var(--blue-ink);
+  --color-gray-bg: var(--gray-bg);
+  --color-gray-ink: var(--gray-ink);
+  --font-display: var(--font-display);
+  --font-sans: var(--font-sans);
+  --font-mono: var(--font-mono);
+  --radius-sm: var(--radius-sm);
+  --radius-md: var(--radius-md);
+  --radius-lg: var(--radius-lg);
+  --radius-xl: var(--radius-xl);
+  --radius-2xl: var(--radius-2xl);
+  --radius-3xl: var(--radius-3xl);
+}
