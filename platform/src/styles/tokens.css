@@ -1,0 +1,177 @@
+/* Mutabaa — generated from design-system/tokens.json by scripts/build-tokens.ts. Do not edit. */
+:root, [data-theme="light"] {
+  --surface-page: #f5f2ec;
+  --surface-sunken: #f3f1ec;
+  --surface-card: #ffffff;
+  --surface-muted: #f8f6f2;
+  --surface-hover: #fbfaf7;
+  --line: #e3ded5;
+  --line-soft: #efebe4;
+  --line-field: #8c867c;
+  --ink: #17191c;
+  --ink-2: #3a3d42;
+  --muted: #5e6166;
+  --link: #0f5b4b;
+  --accent: #c8553d;
+  --accent-strong: #a8412b;
+  --on-accent: #ffffff;
+  --gold: #f2c14e;
+  --on-gold: #17191c;
+  --saffron: #e0a21b;
+  --teal: #2f5d50;
+  --green: #2f6b55;
+  --inverse: #17191c;
+  --inverse-hover: #2c2f34;
+  --on-inverse: #ffffff;
+  --sidebar: #17191c;
+  --sidebar-hover: #22252a;
+  --sidebar-active: #2a2d31;
+  --sidebar-ink: #ffffff;
+  --sidebar-muted: #b9bcc1;
+  --green-bg: #e9f1ec;
+  --green-ink: #1e4a3c;
+  --red-bg: #f8e6e0;
+  --red-ink: #7e2f1f;
+  --amber-bg: #fbf3de;
+  --amber-ink: #5a4410;
+  --blue-bg: #e8edf5;
+  --blue-ink: #27406b;
+  --gray-bg: #efece6;
+  --gray-ink: #45484d;
+  --exp-expired: #771a10;
+  --exp-expired-bg: #fbe7e4;
+  --exp-expired-ink: #7e1d14;
+  --exp-d30: #d4581a;
+  --exp-d30-bg: #fdeedd;
+  --exp-d30-ink: #8a3a0a;
+  --exp-d60: #b07d0a;
+  --exp-d60-bg: #fbf3de;
+  --exp-d60-ink: #5a4410;
+  --exp-d90: #3e6fb0;
+  --exp-d90-bg: #e8edf5;
+  --exp-d90-ink: #27406b;
+  --exp-valid: #3d9a76;
+  --exp-valid-bg: #e9f1ec;
+  --exp-valid-ink: #1e4a3c;
+  --chart-1: #2f5d50;
+  --chart-2: #b07d0a;
+  --chart-3: #c8553d;
+  --chart-4: #3e6fb0;
+  --chart-5: #7a5c99;
+  --chart-6: #6b8f3a;
+  --chart-7: #5e6166;
+  --focus-ring: #17191c;
+  --focus-halo: #f2c14e59;
+  --scrim: #17191c8c;
+  --shadow-card: 0 12px 32px rgba(23,25,28,0.07);
+  --shadow-lift: 0 18px 40px rgba(23,25,28,0.10);
+  --shadow-modal: 0 30px 80px rgba(0,0,0,0.30);
+}
+[data-theme="dark"] {
+  --surface-page: #111214;
+  --surface-sunken: #0c0d0f;
+  --surface-card: #1a1c1f;
+  --surface-muted: #202326;
+  --surface-hover: #22252a;
+  --line: #2e3135;
+  --line-soft: #25282c;
+  --line-field: #6b6f75;
+  --ink: #f1eee8;
+  --ink-2: #d2cec7;
+  --muted: #a3a09a;
+  --link: #7cc4ac;
+  --accent: #e27d63;
+  --accent-strong: #f0a48f;
+  --on-accent: #1a0d09;
+  --gold: #f2c14e;
+  --on-gold: #17191c;
+  --saffron: #e8b13a;
+  --teal: #6fb39c;
+  --green: #5fae8f;
+  --inverse: #f1eee8;
+  --inverse-hover: #d9d5ce;
+  --on-inverse: #17191c;
+  --sidebar: #0c0d0f;
+  --sidebar-hover: #17191c;
+  --sidebar-active: #212429;
+  --sidebar-ink: #f1eee8;
+  --sidebar-muted: #9fa3a9;
+  --green-bg: #16302a;
+  --green-ink: #8fd0b4;
+  --red-bg: #3a1c15;
+  --red-ink: #f2a693;
+  --amber-bg: #3a2f12;
+  --amber-ink: #f0cf7a;
+  --blue-bg: #1b2638;
+  --blue-ink: #a9c1ea;
+  --gray-bg: #2a2d31;
+  --gray-ink: #c9c6c0;
+  --exp-expired: #d13b30;
+  --exp-expired-bg: #3d1714;
+  --exp-expired-ink: #ffb4a8;
+  --exp-d30: #f08a3c;
+  --exp-d30-bg: #3a2312;
+  --exp-d30-ink: #ffc08f;
+  --exp-d60: #e8b13a;
+  --exp-d60-bg: #3a2f12;
+  --exp-d60-ink: #f0cf7a;
+  --exp-d90: #6f9be0;
+  --exp-d90-bg: #1b2638;
+  --exp-d90-ink: #a9c1ea;
+  --exp-valid: #7ee0b5;
+  --exp-valid-bg: #16302a;
+  --exp-valid-ink: #8fd0b4;
+  --chart-1: #6fb39c;
+  --chart-2: #e8b13a;
+  --chart-3: #e27d63;
+  --chart-4: #6f9be0;
+  --chart-5: #b39ad1;
+  --chart-6: #a5c46f;
+  --chart-7: #8a8f96;
+  --focus-ring: #f2c14e;
+  --focus-halo: #f2c14e59;
+  --scrim: #000000b3;
+  --shadow-card: 0 12px 32px rgba(0,0,0,0.45);
+  --shadow-lift: 0 18px 40px rgba(0,0,0,0.55);
+  --shadow-modal: 0 30px 80px rgba(0,0,0,0.70);
+  color-scheme: dark;
+}
+:root {
+  --space-4: 4px;
+  --space-6: 6px;
+  --space-8: 8px;
+  --space-10: 10px;
+  --space-12: 12px;
+  --space-14: 14px;
+  --space-16: 16px;
+  --space-20: 20px;
+  --space-22: 22px;
+  --space-24: 24px;
+  --space-32: 32px;
+  --space-40: 40px;
+  --space-64: 64px;
+  --radius-xs: 4px;
+  --radius-sm: 8px;
+  --radius-md: 10px;
+  --radius-lg: 12px;
+  --radius-xl: 14px;
+  --radius-2xl: 18px;
+  --radius-3xl: 20px;
+  --radius-pill: 999px;
+  --font-display: "Alexandria", "IBM Plex Sans Arabic", system-ui, sans-serif;
+  --font-sans: "IBM Plex Sans Arabic", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", monospace;
+}
+.display-hero { font-family: var(--font-display); font-size: 56px; line-height: 1.15; font-weight: 800; }
+.page-title { font-family: var(--font-display); font-size: 26px; line-height: 1.3; font-weight: 700; }
+.section-title { font-family: var(--font-display); font-size: 20px; line-height: 1.35; font-weight: 700; }
+.card-title { font-family: var(--font-display); font-size: 16px; line-height: 1.4; font-weight: 700; }
+.body { font-family: var(--font-sans); font-size: 15px; line-height: 1.6; font-weight: 400; }
+.body-strong { font-family: var(--font-sans); font-size: 15px; line-height: 1.6; font-weight: 600; }
+.ui { font-family: var(--font-sans); font-size: 14px; line-height: 1.5; font-weight: 600; }
+.label { font-family: var(--font-sans); font-size: 13px; line-height: 1.5; font-weight: 600; }
+.small { font-family: var(--font-sans); font-size: 13px; line-height: 1.6; font-weight: 400; }
+.caption { font-family: var(--font-sans); font-size: 12px; line-height: 1.5; font-weight: 600; }
+.kpi { font-family: var(--font-mono); font-size: 32px; line-height: 1.1; font-weight: 600; }
+.data { font-family: var(--font-mono); font-size: 14px; line-height: 1.5; font-weight: 500; }
+.code { font-family: var(--font-mono); font-size: 12.5px; line-height: 1.8; font-weight: 500; }
