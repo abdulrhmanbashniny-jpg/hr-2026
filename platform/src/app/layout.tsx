@@ -18,8 +18,8 @@ export const viewport: Viewport = {
   width: 'device-width',
   initialScale: 1,
   themeColor: [
-    { media: '(prefers-color-scheme: light)', color: '#f5f2ec' },
-    { media: '(prefers-color-scheme: dark)', color: '#111214' },
+    { media: '(prefers-color-scheme: light)', color: '#eef1f7' },
+    { media: '(prefers-color-scheme: dark)', color: '#05060a' },
   ],
 };
 
@@ -36,11 +36,17 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="" />
         <link
           rel="stylesheet"
-          href="https://fonts.googleapis.com/css2?family=Alexandria:wght@500;600;700;800&family=IBM+Plex+Mono:wght@500;600&family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&display=swap"
+          href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&family=Inter:wght@400..800&display=swap"
         />
         <script dangerouslySetInnerHTML={{ __html: themeScript }} />
       </head>
       <body className="ui-root">
+        <div className="ambient" aria-hidden="true">
+          <span className="ambient__orb" />
+          <span className="ambient__orb" />
+          <span className="ambient__orb" />
+          <span className="ambient__orb" />
+        </div>
         <I18nProvider locale={locale} t={t}>
           <ToastProvider>{children}</ToastProvider>
         </I18nProvider>

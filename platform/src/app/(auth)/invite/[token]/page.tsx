@@ -18,7 +18,7 @@ export default async function InvitePage(props: PageProps<'/invite/[token]'>) {
   const [existing] = await db.select({ id: users.id }).from(users).where(eq(users.email, inv.inv.email));
   return (
     <div className="ui-card">
-      <h1 className="text-xl font-bold">{f(t.auth.inviteTitle, { company: inv.company })}</h1>
+      <h1 className="text-2xl font-bold">{f(t.auth.inviteTitle, { company: inv.company })}</h1>
       <p className="mb-5 text-sm text-muted">{f(t.auth.inviteSubtitle, { company: inv.company, role: t.roles[inv.inv.role] })}</p>
       <InviteForm token={token} existing={!!existing} email={inv.inv.email} />
     </div>

@@ -10,7 +10,7 @@ export default async function AdminSystem() {
   const { t } = await getI18n();
   return (
     <>
-      <PageHead title={t.admin.telegram} />
+      <PageHead title={t.console.system.title} sub={t.console.system.sub} />
       <Card>
         <SystemPanel
           status={{

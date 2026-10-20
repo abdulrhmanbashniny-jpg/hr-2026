@@ -87,8 +87,8 @@ export default async function DashboardPage() {
         <ExpiryMatrix title={t.dashboard.documents} matrix={matrixOf(input.documents.map((d) => d.expiryDate), today)} t={t} hrefFor={(b) => `/app/documents?bucket=${b}`} />
         <ExpiryMatrix title={t.dashboard.license} matrix={fleet.licenseMatrix} t={t} hrefFor={(b) => `/app/fleet?license=${b}`} />
         <ExpiryMatrix title={t.dashboard.inspection} matrix={fleet.inspectionMatrix} t={t} hrefFor={(b) => `/app/fleet?inspection=${b}`} />
-        <div className="grid gap-4">
-          <ExpiryMatrix title={t.dashboard.opCards} matrix={matrixOf(activeOp.map((c) => c.expiryDate), today)} t={t} hrefFor={(b) => `/app/operating-cards?bucket=${b}`} />
+        <ExpiryMatrix title={t.dashboard.opCards} matrix={matrixOf(activeOp.map((c) => c.expiryDate), today)} t={t} hrefFor={(b) => `/app/operating-cards?bucket=${b}`} />
+        <div className="lg:col-span-2 xl:col-span-3">
           <ExpiryMatrix title={t.dashboard.driverCards} matrix={matrixOf(activeDrv.map((c) => c.expiryDate), today)} t={t} hrefFor={(b) => `/app/driver-cards?bucket=${b}`} />
         </div>
       </section>

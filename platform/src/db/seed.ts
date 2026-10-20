@@ -8,13 +8,14 @@
  */
 import './load-env';
 import { randomUUID } from 'node:crypto';
-import { eq, inArray } from 'drizzle-orm';
+import { eq, inArray, like } from 'drizzle-orm';
 import { hashPassword } from '@/lib/auth/password';
 import { addDays, todayRiyadh, toHijri } from '@/lib/dates';
 import { dispatchTenant } from '@/lib/notifications/dispatch';
 import { syncTenantAlerts } from '@/lib/rules/sync';
 import { DEFAULT_SETTINGS } from '@/lib/settings';
 import { storage } from '@/lib/storage';
+import { publishAnnouncement } from '@/lib/admin/announcements';
 import { randomToken } from '@/lib/crypto';
 import { closeDb, db } from './index';
 import {
@@ -26,9 +27,11 @@ import {
   documents,
   driverCards,
   gosiSubscribers,
+  announcements,
   importBatches,
   memberships,
   operatingCards,
+  payments,
   plans,
   promoCodes,
   residents,
@@ -133,6 +136,8 @@ async function seedPlatform() {
 
 async function resetDemo() {
   const demo = await db.select({ id: tenants.id }).from(tenants).where(inArray(tenants.slug, DEMO_SLUGS));
+  await db.delete(tenants).where(like(tenants.slug, 'sample-%'));
+  await db.delete(users).where(like(users.email, '%.sample.mutabaa.local'));
   if (demo.length) {
     const docs = await db.select({ key: documents.fileKey }).from(documents).where(inArray(documents.tenantId, demo.map((d) => d.id)));
     for (const d of docs) if (d.key) await storage().remove(d.key).catch(() => undefined);
@@ -348,16 +353,103 @@ async function seedDemoCompany() {
   console.log(`Demo users (password ${DEMO_PASSWORD}): ${DEMO_USERS.map((u) => `${u.email} [${u.role}]`).join(', ')}`);
 }
 
+/**
+ * Sample subscribers for the platform console: companies at every subscription stage with a year of
+ * payment history, so revenue, conversion and trial views have something to show. Slugs start with
+ * "sample-" and their users end in ".sample.mutabaa.local"; delete them from the console or with --reset.
+ */
+const SAMPLES: { name: string; cr: string; plan: 'starter' | 'growth' | 'enterprise'; cycle: 'monthly' | 'yearly'; status: 'active' | 'trialing' | 'past_due' | 'expired' | 'canceled'; age: number; trialLeft?: number; paidMonths?: number; suspended?: boolean; pending?: boolean }[] = [
+  { name: 'شركة سحاب اللوجستية', cr: '1010223344', plan: 'enterprise', cycle: 'yearly', status: 'active', age: 330 },
+  { name: 'مجموعة الواحة التجارية', cr: '1010334455', plan: 'growth', cycle: 'monthly', status: 'active', age: 300, paidMonths: 10 },
+  { name: 'شركة المدار للنقل', cr: '2050445566', plan: 'growth', cycle: 'monthly', status: 'active', age: 250, paidMonths: 8 },
+  { name: 'مصنع الجزيرة للبلاستيك', cr: '2050556677', plan: 'starter', cycle: 'monthly', status: 'active', age: 210, paidMonths: 7 },
+  { name: 'شركة رؤية للتشغيل والصيانة', cr: '4030667788', plan: 'growth', cycle: 'yearly', status: 'active', age: 150 },
+  { name: 'مؤسسة البيان للخدمات', cr: '4030778899', plan: 'starter', cycle: 'monthly', status: 'active', age: 120, paidMonths: 4 },
+  { name: 'شركة الساحل للأغذية', cr: '4030889900', plan: 'growth', cycle: 'monthly', status: 'past_due', age: 180, paidMonths: 5 },
+  { name: 'شركة درب الخليج للشحن', cr: '2050990011', plan: 'starter', cycle: 'monthly', status: 'active', age: 75, paidMonths: 3 },
+  { name: 'مؤسسة إتقان للمقاولات', cr: '1010101122', plan: 'starter', cycle: 'monthly', status: 'expired', age: 140, paidMonths: 2 },
+  { name: 'شركة نماء الزراعية', cr: '1131212233', plan: 'growth', cycle: 'monthly', status: 'canceled', age: 200, paidMonths: 3, suspended: true },
+  { name: 'مؤسسة الرواد للمقاولات', cr: '1010323344', plan: 'starter', cycle: 'monthly', status: 'trialing', age: 5, trialLeft: 2, pending: true },
+  { name: 'مجموعة الأفق الرقمية', cr: '1010434455', plan: 'growth', cycle: 'monthly', status: 'trialing', age: 3, trialLeft: 4 },
+  { name: 'شركة أركان للتطوير', cr: '1010545566', plan: 'growth', cycle: 'monthly', status: 'trialing', age: 1, trialLeft: 6 },
+  { name: 'شركة مسار للنقل المدرسي', cr: '2050656677', plan: 'starter', cycle: 'monthly', status: 'active', age: 40, paidMonths: 2 },
+];
+
+async function seedSampleSubscribers() {
+  const [exists] = await db.select({ id: tenants.id }).from(tenants).where(like(tenants.slug, 'sample-%')).limit(1);
+  if (exists) return;
+  const planRows = await db.select().from(plans);
+  const byCode = new Map(planRows.map((p) => [p.code, p]));
+  const passwordHash = await hashPassword(DEMO_PASSWORD);
+  const DAY = 86_400_000;
+  const now = Date.now();
+  const vat = (n: number) => Math.round(n * 1.15);
+  for (const [i, x] of SAMPLES.entries()) {
+    const plan = byCode.get(x.plan)!;
+    const createdAt = new Date(now - x.age * DAY);
+    const slug = `sample-${i + 1}`;
+    const [tenant] = await db.insert(tenants).values({ name: x.name, slug, crNumber: x.cr, settings: DEFAULT_SETTINGS, createdAt, suspendedAt: x.suspended ? new Date(now - 20 * DAY) : null }).returning();
+    const [owner] = await db
+      .insert(users)
+      .values({ email: `owner@${slug}.sample.mutabaa.local`, name: `مالك ${x.name.split(' ').slice(-1)[0]}`, passwordHash, createdAt, lastLoginAt: x.status === 'expired' || x.status === 'canceled' ? new Date(now - 30 * DAY) : new Date(now - ((i * 7) % 5) * DAY - 3_600_000) })
+      .returning();
+    await db.insert(memberships).values({ tenantId: tenant.id, userId: owner.id, role: 'owner', createdAt });
+    const trialEndsAt = new Date(createdAt.getTime() + 7 * DAY);
+    const periodStart = x.cycle === 'yearly' ? new Date(createdAt.getTime() + 7 * DAY) : new Date(now - ((x.age - 7) % 30) * DAY);
+    const periodEnd = x.cycle === 'yearly' ? new Date(periodStart.getTime() + 365 * DAY) : new Date(periodStart.getTime() + 30 * DAY);
+    await db.insert(subscriptions).values({
+      tenantId: tenant.id,
+      planId: plan.id,
+      status: x.status,
+      billingCycle: x.cycle,
+      trialEndsAt: x.status === 'trialing' ? new Date(now + (x.trialLeft ?? 7) * DAY - 3_600_000) : trialEndsAt,
+      currentPeriodStart: x.status === 'trialing' ? null : periodStart,
+      currentPeriodEnd: x.status === 'trialing' ? null : x.status === 'expired' || x.status === 'canceled' ? new Date(now - 25 * DAY) : periodEnd,
+      createdAt,
+    });
+    const paid: { at: Date; subtotal: number }[] = [];
+    if (x.cycle === 'yearly' && x.status === 'active') paid.push({ at: new Date(createdAt.getTime() + 7 * DAY), subtotal: plan.priceYearly });
+    for (let k = 0; k < (x.paidMonths ?? 0); k++) paid.push({ at: new Date(createdAt.getTime() + (7 + k * 30) * DAY), subtotal: plan.priceMonthly });
+    if (paid.length) {
+      await db.insert(payments).values(
+        paid.filter((p) => p.at.getTime() < now).map((p) => ({ tenantId: tenant.id, planId: plan.id, billingCycle: x.cycle, subtotal: p.subtotal, vat: vat(p.subtotal) - p.subtotal, total: vat(p.subtotal), provider: i % 3 ? 'moyasar' : 'manual', status: 'paid' as const, paidAt: p.at, createdBy: owner.id, createdAt: p.at })),
+      );
+    }
+    if (x.pending) await db.insert(payments).values({ tenantId: tenant.id, planId: plan.id, billingCycle: x.cycle, subtotal: plan.priceMonthly, vat: vat(plan.priceMonthly) - plan.priceMonthly, total: vat(plan.priceMonthly), provider: 'manual', status: 'pending', createdBy: owner.id, createdAt: new Date(now - 6 * 3_600_000) });
+    await db.insert(auditLogs).values({ tenantId: tenant.id, userId: owner.id, action: 'auth.register', summary: `تسجيل شركة جديدة: ${x.name}`, createdAt });
+  }
+  console.log(`Sample subscribers seeded: ${SAMPLES.length} companies (password ${DEMO_PASSWORD}).`);
+}
+
+async function seedAnnouncement() {
+  const [any] = await db.select({ id: announcements.id }).from(announcements).limit(1);
+  if (any) return;
+  const [admin] = await db.select().from(users).where(eq(users.isSuperAdmin, true)).limit(1);
+  if (!admin) return;
+  await publishAnnouncement({
+    title: 'تصميم جديد لمتابعة',
+    body: 'أطلقنا الهوية الزجاجية الجديدة: لوحات أوضح، ووضع ليلي محسّن، وتنبيهات أسرع. شاركنا رأيك من صفحة الإعدادات.',
+    level: 'success',
+    audience: { kind: 'all' },
+    channels: ['banner', 'in_app'],
+    link: null,
+    endsAt: new Date(Date.now() + 21 * 86_400_000),
+    createdBy: admin.id,
+  });
+}
+
 async function main() {
   const reset = process.argv.includes('--reset');
   await seedPlatform();
   const [existing] = await db.select().from(tenants).where(eq(tenants.slug, 'demo'));
   if (existing && !reset) {
     console.log('Demo company already exists. Run with --reset to recreate it.');
-    return;
+  } else {
+    if (reset) await resetDemo();
+    await seedDemoCompany();
   }
-  if (reset) await resetDemo();
-  await seedDemoCompany();
+  await seedSampleSubscribers();
+  await seedAnnouncement();
 }
 
 main()

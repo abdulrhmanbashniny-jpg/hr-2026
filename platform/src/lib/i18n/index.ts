@@ -30,4 +30,4 @@ export async function getI18n() {
 }
 
 export type { Dictionary, Locale };
-export { f, fmtDate, fmtMoney, fmtNumber, dayCount } from './format';
+export { countOf, f, fmtDate, fmtMoney, fmtNumber, dayCount } from './format';

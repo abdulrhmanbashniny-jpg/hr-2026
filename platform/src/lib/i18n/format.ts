@@ -33,3 +33,19 @@ export function fmtDate(iso: string | Date | null | undefined, locale: Locale, w
 export function dayCount(n: number, locale: Locale): string {
   return locale === 'ar' ? arDays(n) : enDays(n);
 }
+
+const NOUNS = {
+  company: { ar: ['شركة واحدة', 'شركتان', 'شركات', 'شركة'], en: ['company', 'companies'] },
+  user: { ar: ['مستخدم واحد', 'مستخدمان', 'مستخدمين', 'مستخدم'], en: ['user', 'users'] },
+  payment: { ar: ['عملية دفع واحدة', 'عمليتا دفع', 'عمليات دفع', 'عملية دفع'], en: ['payment', 'payments'] },
+} as const;
+
+/** "3 شركات", "11 شركة", "شركتان" / "3 companies": a count with its noun in the right Arabic number form. */
+export function countOf(n: number, noun: keyof typeof NOUNS, locale: Locale): string {
+  const w = NOUNS[noun];
+  if (locale === 'en') return `${fmtNumber(n)} ${n === 1 ? w.en[0] : w.en[1]}`;
+  if (n === 1) return w.ar[0];
+  if (n === 2) return w.ar[1];
+  if (n >= 3 && n <= 10) return `${n} ${w.ar[2]}`;
+  return `${fmtNumber(n)} ${w.ar[3]}`;
+}

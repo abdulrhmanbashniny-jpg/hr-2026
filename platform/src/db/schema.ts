@@ -62,6 +62,8 @@ export const users = pgTable('users', {
   isSuperAdmin: boolean('is_super_admin').notNull().default(false),
   locale: text('locale').notNull().default('ar'),
   lastLoginAt: timestamp('last_login_at', { withTimezone: true }),
+  /** Set by the platform admin: the user cannot sign in and existing sessions stop working. */
+  disabledAt: timestamp('disabled_at', { withTimezone: true }),
   createdAt: createdAt(),
 });
 
@@ -560,3 +562,60 @@ export const storedFiles = pgTable('stored_files', {
   data: bytea('data').notNull(),
   createdAt: createdAt(),
 });
+
+// ───────────────────────── Platform administration ─────────────────────────
+
+/** Internal notes the platform team keeps about a customer company (never shown to the company). */
+export const tenantNotes = pgTable(
+  'tenant_notes',
+  {
+    id: id(),
+    tenantId: tenantRef(),
+    authorId: uuid('author_id').references(() => users.id, { onDelete: 'set null' }),
+    body: text('body').notNull(),
+    createdAt: createdAt(),
+  },
+  (t) => [index('tenant_notes_tenant').on(t.tenantId, t.createdAt)],
+);
+
+export const announcementLevelEnum = pgEnum('announcement_level', ['info', 'success', 'warning', 'critical']);
+
+export interface AnnouncementAudience {
+  kind: 'all' | 'trialing' | 'active' | 'expired' | 'plan' | 'tenants';
+  planIds?: string[];
+  tenantIds?: string[];
+}
+
+/** Messages from the platform team to subscribers: a banner in the workspace, an in-app notification and/or an e-mail. */
+export const announcements = pgTable('announcements', {
+  id: id(),
+  title: text('title').notNull(),
+  body: text('body').notNull(),
+  level: announcementLevelEnum('level').notNull().default('info'),
+  audience: jsonb('audience').$type<AnnouncementAudience>().notNull(),
+  channels: jsonb('channels').$type<('banner' | 'in_app' | 'email')[]>().notNull(),
+  link: text('link'),
+  startsAt: timestamp('starts_at', { withTimezone: true }).notNull().defaultNow(),
+  endsAt: timestamp('ends_at', { withTimezone: true }),
+  tenantCount: integer('tenant_count').notNull().default(0),
+  userCount: integer('user_count').notNull().default(0),
+  emailSent: integer('email_sent').notNull().default(0),
+  emailFailed: integer('email_failed').notNull().default(0),
+  createdBy: uuid('created_by').references(() => users.id, { onDelete: 'set null' }),
+  archivedAt: timestamp('archived_at', { withTimezone: true }),
+  createdAt: createdAt(),
+});
+
+export const announcementDismissals = pgTable(
+  'announcement_dismissals',
+  {
+    announcementId: uuid('announcement_id')
+      .notNull()
+      .references(() => announcements.id, { onDelete: 'cascade' }),
+    userId: uuid('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    dismissedAt: timestamp('dismissed_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [primaryKey({ columns: [t.announcementId, t.userId] })],
+);

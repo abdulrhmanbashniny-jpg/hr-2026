@@ -1,122 +1,93 @@
 'use client';
 
-import { useActionState, useCallback, useState, useTransition } from 'react';
-import { activatePlan, extendTrial, toggleSuspend } from '@/app/admin/actions';
-import { Pill } from '@/components/ui/card';
+import { Avatar } from '@/components/app/topbar';
 import { DataTable, type Column } from '@/components/ui/data-table';
-import { Field, SubmitButton, useActionFeedback } from '@/components/ui/form';
-import { Modal } from '@/components/ui/modal';
-import { useToast } from '@/components/ui/toast';
 import { useI18n } from '@/lib/i18n/client';
-import { fmtDate } from '@/lib/i18n/format';
+import { dayCount, fmtDate } from '@/lib/i18n/format';
+import { StatusPill, type SubStatusKey } from './status';
 
 export interface TenantVM {
   id: string;
   name: string;
   crNumber: string | null;
   createdAt: string;
-  status: 'trialing' | 'active' | 'past_due' | 'canceled' | 'expired' | null;
-  daysLeft: number | null;
+  status: SubStatusKey;
   plan: string | null;
+  cycle: 'monthly' | 'yearly' | null;
+  renewalAt: string | null;
+  daysLeft: number | null;
   members: number;
+  records: number;
+  lastActive: string | null;
   suspended: boolean;
+  owner: string | null;
 }
 
-function ActivateDialog({ tenant, plans, onClose }: { tenant: TenantVM; plans: { id: string; name: string }[]; onClose: () => void }) {
-  const { t } = useI18n();
-  const [state, action] = useActionState(activatePlan.bind(null, tenant.id), null);
-  useActionFeedback(state, onClose);
-  return (
-    <Modal open onClose={onClose} title={`${t.admin.activate} — ${tenant.name}`}>
-      <form action={action} className="flex flex-col gap-3.5">
-        <Field label={t.admin.plan} htmlFor="act-plan">
-          <select id="act-plan" name="planId" className="ui-select">
-            {plans.map((p) => (
-              <option key={p.id} value={p.id}>
-                {p.name}
-              </option>
-            ))}
-          </select>
-        </Field>
-        <Field label={t.billing.choosePlan} htmlFor="act-cycle">
-          <select id="act-cycle" name="cycle" className="ui-select">
-            <option value="monthly">{t.billing.monthly}</option>
-            <option value="yearly">{t.billing.yearly}</option>
-          </select>
-        </Field>
-        <div className="ui-modal__foot" style={{ margin: '0 -20px -20px' }}>
-          <button type="button" className="ui-btn ui-btn--ghost" onClick={onClose}>
-            {t.common.cancel}
-          </button>
-          <SubmitButton>{t.admin.activate}</SubmitButton>
-        </div>
-      </form>
-    </Modal>
-  );
-}
-
-export function TenantsTable({ rows, plans }: { rows: TenantVM[]; plans: { id: string; name: string }[] }) {
+export function TenantsTable({ rows }: { rows: TenantVM[] }) {
   const { t, locale } = useI18n();
-  const toast = useToast();
-  const [pending, start] = useTransition();
-  const [activating, setActivating] = useState<TenantVM | null>(null);
-  const close = useCallback(() => setActivating(null), []);
-  const run = (fn: () => Promise<{ ok: boolean; error?: string; message?: string }>) =>
-    start(async () => {
-      const r = await fn();
-      toast(r.ok ? (r.message ?? t.settings.saved) : (r.error ?? t.common.error), r.ok ? 'ok' : 'err');
-    });
+  const c = t.console.tenants;
   const columns: Column<TenantVM>[] = [
     {
       key: 'name',
-      header: t.admin.company,
+      header: c.company,
       cell: (r) => (
-        <div className="flex flex-col">
-          <b>{r.name}</b>
-          <span className="ui-num text-xs text-muted">{r.crNumber ?? '—'}</span>
-        </div>
+        <span className="flex items-center gap-3">
+          <Avatar name={r.name} />
+          <span className="min-w-0">
+            <span className="block truncate font-semibold">{r.name}</span>
+            <span className="block truncate text-xs text-muted">{r.owner ?? r.crNumber ?? '—'}</span>
+          </span>
+        </span>
       ),
       sort: (r) => r.name,
       csv: (r) => r.name,
     },
+    { key: 'cr', header: c.crNumber, cell: () => null, csv: (r) => r.crNumber, csvOnly: true },
     {
       key: 'status',
-      header: t.common.status,
-      cell: (r) => (
-        <span className="flex flex-wrap gap-1">
-          {r.status ? <Pill tone={r.status === 'active' ? 'green' : r.status === 'trialing' ? 'amber' : 'red'}>{t.billing.status[r.status]}</Pill> : null}
-          {r.daysLeft !== null ? <span className="ui-num text-xs text-muted">{r.daysLeft}d</span> : null}
-          {r.suspended ? <Pill tone="red">{t.admin.suspend}</Pill> : null}
-        </span>
-      ),
-      sort: (r) => r.status,
-      csv: (r) => r.status,
+      header: c.status,
+      cell: (r) => <StatusPill status={r.suspended ? 'suspended' : r.status} label={r.suspended ? t.console.status.suspended : t.console.status[r.status]} />,
+      sort: (r) => (r.suspended ? 'z' : r.status),
+      csv: (r) => (r.suspended ? 'suspended' : r.status),
     },
-    { key: 'plan', header: t.admin.plan, cell: (r) => r.plan ?? '—', sort: (r) => r.plan, csv: (r) => r.plan },
-    { key: 'members', header: t.admin.members, cell: (r) => <span className="ui-num">{r.members}</span>, sort: (r) => r.members, csv: (r) => r.members },
-    { key: 'created', header: t.admin.created, cell: (r) => <span className="text-sm">{fmtDate(r.createdAt, locale)}</span>, sort: (r) => r.createdAt, csv: (r) => r.createdAt },
+    { key: 'plan', header: c.plan, cell: (r) => <span className="whitespace-nowrap">{r.plan ? `${r.plan}${r.cycle ? ` · ${t.console.cycle[r.cycle]}` : ''}` : '—'}</span>, sort: (r) => r.plan ?? '', csv: (r) => r.plan, hideSm: true },
     {
-      key: 'actions',
-      header: '',
-      cell: (r) => (
-        <div className="flex flex-wrap gap-1.5">
-          <button type="button" className="ui-btn ui-btn--ghost ui-btn--sm" disabled={pending} onClick={() => run(() => extendTrial(r.id))}>
-            {t.admin.extendTrial}
-          </button>
-          <button type="button" className="ui-btn ui-btn--primary ui-btn--sm" onClick={() => setActivating(r)}>
-            {t.admin.activate}
-          </button>
-          <button type="button" className="ui-btn ui-btn--danger ui-btn--sm" disabled={pending} onClick={() => window.confirm(`${r.suspended ? t.admin.unsuspend : t.admin.suspend}: ${r.name}?`) && run(() => toggleSuspend(r.id))}>
-            {r.suspended ? t.admin.unsuspend : t.admin.suspend}
-          </button>
-        </div>
-      ),
+      key: 'renewal',
+      header: c.renewal,
+      cell: (r) =>
+        r.renewalAt ? (
+          <span className="flex flex-col">
+            <span className="whitespace-nowrap">{fmtDate(r.renewalAt, locale)}</span>
+            {r.daysLeft !== null ? <span className={`text-xs ${r.daysLeft <= 7 ? 'font-semibold' : 'text-muted'}`} style={r.daysLeft <= 7 ? { color: 'var(--red-ink)' } : undefined}>{r.daysLeft < 0 ? t.console.status.expired : dayCount(r.daysLeft, locale)}</span> : null}
+          </span>
+        ) : (
+          '—'
+        ),
+      sort: (r) => r.renewalAt ?? '9999',
+      csv: (r) => r.renewalAt?.slice(0, 10),
+      hideSm: true,
     },
+    { key: 'members', header: c.users, cell: (r) => <span className="ui-num">{r.members}</span>, sort: (r) => r.members, csv: (r) => r.members, hideSm: true },
+    { key: 'records', header: c.records, cell: (r) => <span className="ui-num">{r.records.toLocaleString('en')}</span>, sort: (r) => r.records, csv: (r) => r.records, hideSm: true },
+    { key: 'created', header: c.created, cell: (r) => <span className="whitespace-nowrap">{fmtDate(r.createdAt, locale)}</span>, sort: (r) => r.createdAt, csv: (r) => r.createdAt.slice(0, 10), hideSm: true },
+    { key: 'active', header: c.lastActive, cell: (r) => <span className="whitespace-nowrap text-sm">{r.lastActive ? fmtDate(r.lastActive, locale, true) : '—'}</span>, sort: (r) => r.lastActive ?? '', csv: (r) => r.lastActive, hideSm: true },
   ];
   return (
-    <>
-      <DataTable rows={rows} columns={columns} rowKey={(r) => r.id} search={(r) => `${r.name} ${r.crNumber ?? ''}`} exportName="tenants" />
-      {activating ? <ActivateDialog tenant={activating} plans={plans} onClose={close} /> : null}
-    </>
+    <DataTable
+      rows={rows}
+      columns={columns}
+      rowKey={(r) => r.id}
+      rowHref={(r) => `/admin/tenants/${r.id}`}
+      search={(r) => `${r.name} ${r.crNumber ?? ''} ${r.owner ?? ''}`}
+      filters={[
+        { id: 'trial', label: c.filterTrial, predicate: (r) => r.status === 'trialing' },
+        { id: 'active', label: c.filterActive, predicate: (r) => r.status === 'active' },
+        { id: 'pastdue', label: c.filterPastDue, predicate: (r) => r.status === 'past_due' },
+        { id: 'ended', label: c.filterEnded, predicate: (r) => r.status === 'expired' || r.status === 'canceled' },
+        { id: 'suspended', label: c.filterSuspended, predicate: (r) => r.suspended },
+      ]}
+      exportName="companies"
+      pageSize={20}
+    />
   );
 }

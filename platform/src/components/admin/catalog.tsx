@@ -267,7 +267,7 @@ export function PaymentsTable({ rows }: { rows: PaymentVM[] }) {
     { key: 'plan', header: t.admin.plan, cell: (p) => `${p.plan} · ${p.cycle === 'yearly' ? t.billing.yearly : t.billing.monthly}`, csv: (p) => p.plan },
     { key: 'total', header: t.billing.total, cell: (p) => <span className="ui-num">{formatSar(p.total, locale)}</span>, sort: (p) => p.total, csv: (p) => p.total / 100 },
     { key: 'provider', header: 'Provider', cell: (p) => <code>{p.provider}</code>, csv: (p) => p.provider },
-    { key: 'status', header: t.common.status, cell: (p) => <Pill tone={p.status === 'paid' ? 'green' : p.status === 'pending' ? 'amber' : 'red'}>{p.status}</Pill>, sort: (p) => p.status, csv: (p) => p.status },
+    { key: 'status', header: t.common.status, cell: (p) => <Pill tone={p.status === 'paid' ? 'green' : p.status === 'pending' ? 'amber' : 'red'}>{t.console.paymentStatus[p.status]}</Pill>, sort: (p) => p.status, csv: (p) => p.status },
     {
       key: 'actions',
       header: '',
