@@ -24,6 +24,8 @@ describe('platform team roles', () => {
     expect(staffCan('finance', 'billing:manage')).toBe(true);
     expect(staffCan('finance', 'tenants:enter')).toBe(false);
     expect(staffCan('finance', 'messages:send')).toBe(false);
+    expect(staffCan('support', 'inbox:view')).toBe(true);
+    expect(staffCan('finance', 'inbox:view')).toBe(false);
     expect(staffCan(null, 'tenants:view')).toBe(false);
   });
 

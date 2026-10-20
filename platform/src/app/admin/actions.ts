@@ -14,8 +14,10 @@ import { f, getI18n } from '@/lib/i18n';
 import { encryptSecret } from '@/lib/crypto';
 import { runDailyJob } from '@/lib/notifications/dispatch';
 import { emailLayout, testPlatformSmtp } from '@/lib/notifications/email';
-import { getPlatformSmtp, savePlatformSmtp, type PlatformSmtp } from '@/lib/platform-settings';
-import { platformBot, setCommands, setWebhook } from '@/lib/notifications/telegram';
+import { getPlatformSmtp, getPlatformTelegram, savePlatformSmtp, savePlatformTelegram, type PlatformSmtp } from '@/lib/platform-settings';
+import { getMe, platformBot, sendMessage, setCommands, setWebhook } from '@/lib/notifications/telegram';
+import { platformAlertTarget } from '@/lib/contact';
+import { toLatinDigits } from '@/lib/imports/normalize';
 
 export async function savePlan(id: string | null, _prev: ActionResult | null, form: FormData): Promise<ActionResult> {
   return runAction(async () => {
@@ -169,5 +171,59 @@ export async function testPlatformMail(_prev: ActionResult | null, form: FormDat
       return { ok: false, error: `SMTP: ${err instanceof Error ? err.message : String(err)}` };
     }
     return { ok: true, message: f(t.console.system.mailTestSent, { email: s.user.email }) };
+  });
+}
+
+// ───────────────────────── Platform alerts on Telegram ─────────────────────────
+
+/** Saves the bot and chats that receive platform alerts such as new "Contact us" messages. */
+export async function savePlatformTelegramAlerts(_prev: ActionResult | null, form: FormData): Promise<ActionResult> {
+  return runAction(async () => {
+    const s = await requireStaff('system:manage');
+    const { t } = await getI18n();
+    const c = t.console.system;
+    const current = await getPlatformTelegram();
+    const token = str(form, 'tgToken');
+    const chatIds = [...new Set(toLatinDigits(str(form, 'tgChats')).split(/[\s,،]+/).filter(Boolean))];
+    if (chatIds.some((id) => !/^-?\d{4,20}$/.test(id)) || chatIds.length > 20) return { ok: false, error: `${c.tgAlertsChats}: ${t.common.error}` };
+    let botTokenEnc = current?.botTokenEnc ?? null;
+    let botUsername = current?.botUsername ?? '';
+    if (token) {
+      if (!/^\d{5,15}:[A-Za-z0-9_-]{30,}$/.test(token)) return { ok: false, error: c.tgAlertsInvalid };
+      try {
+        botUsername = (await getMe(token)).username;
+      } catch {
+        return { ok: false, error: c.tgAlertsInvalid };
+      }
+      botTokenEnc = encryptSecret(token);
+    }
+    const enabled = bool(form, 'tgEnabled');
+    if (enabled && (!chatIds.length || (!botTokenEnc && !platformBot()))) return { ok: false, error: c.tgAlertsMissing };
+    await savePlatformTelegram({ enabled, botTokenEnc, botUsername, chatIds }, s.user.id);
+    await audit({ tenantId: null, userId: s.user.id, action: 'admin.platform_telegram', summary: enabled ? `تفعيل إشعارات المنصة على تليجرام (${chatIds.length} محادثة)` : 'إيقاف إشعارات المنصة على تليجرام' });
+    revalidatePath('/admin', 'layout');
+    return { ok: true, message: c.tgAlertsSaved };
+  });
+}
+
+export async function testPlatformTelegramAlerts(): Promise<ActionResult> {
+  return runAction(async () => {
+    await requireStaff('system:manage');
+    const { t } = await getI18n();
+    const c = t.console.system;
+    const target = await platformAlertTarget();
+    if (!target) return { ok: false, error: c.tgAlertsMissing };
+    let sent = 0;
+    const errors: string[] = [];
+    for (const chat of target.chatIds) {
+      try {
+        await sendMessage(target.bot, chat, '✅ <b>اختبار إشعارات منصة متابعة</b>\nستصلك هنا رسائل «تواصل معنا» الجديدة.');
+        sent++;
+      } catch (err) {
+        errors.push(`${chat}: ${err instanceof Error ? err.message : String(err)}`);
+      }
+    }
+    if (!sent) return { ok: false, error: errors.join(' · ') || t.common.error };
+    return { ok: true, message: f(c.tgAlertsTestSent, { n: sent }) };
   });
 }

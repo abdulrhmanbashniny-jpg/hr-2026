@@ -1,5 +1,5 @@
 import { eq } from 'drizzle-orm';
-import type { z } from 'zod';
+import { z } from 'zod';
 import { db } from '@/db';
 import { platformSettings } from '@/db/schema';
 import { smtpSchema } from '@/lib/settings';
@@ -31,4 +31,34 @@ export async function savePlatformSmtp(value: PlatformSmtp, userId: string): Pro
     .values({ key: SMTP_KEY, value, updatedBy: userId })
     .onConflictDoUpdate({ target: platformSettings.key, set: { value, updatedBy: userId, updatedAt: new Date() } });
   cached = null;
+}
+
+// ───────────────────────── Telegram alerts for the platform team ─────────────────────────
+
+export const platformTelegramSchema = z.object({
+  enabled: z.boolean(),
+  botTokenEnc: z.string().nullable(),
+  botUsername: z.string(),
+  chatIds: z.array(z.string().regex(/^-?\d{4,20}$/)).max(20),
+});
+export type PlatformTelegram = z.infer<typeof platformTelegramSchema>;
+
+const TELEGRAM_KEY = 'telegram_alerts';
+
+export async function getPlatformTelegram(): Promise<PlatformTelegram | null> {
+  try {
+    const [row] = await db.select().from(platformSettings).where(eq(platformSettings.key, TELEGRAM_KEY));
+    const parsed = row ? platformTelegramSchema.safeParse(row.value) : null;
+    return parsed?.success ? parsed.data : null;
+  } catch (err) {
+    console.error('platform settings unavailable', err);
+    return null;
+  }
+}
+
+export async function savePlatformTelegram(value: PlatformTelegram, userId: string): Promise<void> {
+  await db
+    .insert(platformSettings)
+    .values({ key: TELEGRAM_KEY, value, updatedBy: userId })
+    .onConflictDoUpdate({ target: platformSettings.key, set: { value, updatedBy: userId, updatedAt: new Date() } });
 }

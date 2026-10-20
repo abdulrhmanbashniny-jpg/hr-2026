@@ -17,6 +17,7 @@ export type StaffPermission =
   | 'users:manage'
   | 'messages:send'
   | 'audit:view'
+  | 'inbox:view'
   | 'system:manage'
   | 'team:manage';
 
@@ -32,6 +33,7 @@ const ALL: StaffPermission[] = [
   'users:manage',
   'messages:send',
   'audit:view',
+  'inbox:view',
   'system:manage',
   'team:manage',
 ];
@@ -39,7 +41,7 @@ const ALL: StaffPermission[] = [
 const GRANTS: Record<StaffRole, StaffPermission[]> = {
   owner: ALL,
   admin: ALL.filter((p) => p !== 'team:manage' && p !== 'tenants:delete'),
-  support: ['tenants:view', 'tenants:notes', 'tenants:enter', 'users:view', 'users:support', 'messages:send', 'audit:view'],
+  support: ['tenants:view', 'tenants:notes', 'tenants:enter', 'users:view', 'users:support', 'messages:send', 'audit:view', 'inbox:view'],
   finance: ['tenants:view', 'tenants:notes', 'billing:manage', 'audit:view'],
 };
 

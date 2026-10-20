@@ -265,10 +265,13 @@ a.ui-kpi:hover { transform: translateY(-3px); box-shadow: inset 0 1px 0 var(--gl
   .glass, .ui-card, .ui-kpi, .ui-side, .app-topbar, .ui-menu, .ui-modal, .ui-toast { background: var(--surface-card); }
 }
 .ui-seg__link { display: inline-flex; align-items: center; min-height: 32px; padding: 0 var(--space-14); border-radius: var(--radius-pill); font: 600 13px/1 var(--font-sans); color: var(--ink-2); text-decoration: none; transition: background-color .25s, box-shadow .25s, color .2s; }
-.ui-seg__link[aria-pressed="true"] { background: var(--glass-2); color: var(--ink); box-shadow: inset 0 1px 0 var(--glass-rim), 0 2px 8px rgba(15,23,42,.10); }
+.ui-seg__link[aria-pressed="true"], .ui-seg__choice[data-checked="true"] { background: var(--glass-2); color: var(--ink); box-shadow: inset 0 1px 0 var(--glass-rim), 0 2px 8px rgba(15,23,42,.10); }
 
 /* Radio choice rendered as a selectable card (e.g. platform team roles). */
 .choice-card { display: flex; align-items: flex-start; gap: 10px; padding: 10px 12px; border-radius: 14px; border: 1px solid var(--line-soft); background: var(--glass-1); cursor: pointer; transition: border-color 0.15s, background 0.15s; }
 .choice-card:hover { border-color: color-mix(in srgb, var(--accent) 40%, var(--line-soft)); }
 .choice-card[data-checked="true"] { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 8%, var(--glass-1)); }
 .ui-radio { width: 18px; height: 18px; margin-top: 2px; flex: none; accent-color: var(--accent); }
+/* A segmented control made of radio inputs (labels act as the segments). */
+.ui-seg__choice { cursor: pointer; }
+.ui-seg__choice:has(input:focus-visible) { outline: 2px solid var(--accent); outline-offset: 2px; }

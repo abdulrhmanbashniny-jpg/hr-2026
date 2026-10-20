@@ -1,6 +1,7 @@
 import { asc, eq } from 'drizzle-orm';
 import { ArrowLeft, BellRing, Check, FileSpreadsheet, IdCard, Layers, Lock, RefreshCw, Send, ShieldCheck, Sparkles, Truck, Wallet } from 'lucide-react';
 import Link from 'next/link';
+import { DesignerCredit } from '@/components/app/credit';
 import { BrandGlyph } from '@/components/ui/brand';
 import { db } from '@/db';
 import { plans } from '@/db/schema';
@@ -33,6 +34,9 @@ export default async function Landing() {
           <a href="#pricing" className="ui-btn ui-btn--ghost ui-btn--sm hide-sm">
             {L.nav.pricing}
           </a>
+          <Link href="/contact" className="ui-btn ui-btn--ghost ui-btn--sm hide-sm">
+            {t.credit.contact}
+          </Link>
           <Link href="/login" className="ui-btn ui-btn--ghost ui-btn--sm">
             {L.nav.login}
           </Link>
@@ -229,6 +233,7 @@ export default async function Landing() {
           </span>
           {L.footer}
         </span>
+        <DesignerCredit />
       </footer>
     </div>
   );

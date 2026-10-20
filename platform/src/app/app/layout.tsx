@@ -19,6 +19,7 @@ import Link from 'next/link';
 import type { ReactNode } from 'react';
 import { exitSupport } from '@/app/actions/announcements';
 import { AnnouncementBanners } from '@/components/app/announcement-banner';
+import { DesignerCredit } from '@/components/app/credit';
 import { AppShell } from '@/components/app/shell';
 import { Sidebar, type NavGroup } from '@/components/app/sidebar';
 import { Topbar } from '@/components/app/topbar';
@@ -143,6 +144,7 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
       {banner}
       <AnnouncementBanners items={banners} />
       <main className="app-content">{children}</main>
+      <DesignerCredit />
     </AppShell>
   );
 }
