@@ -16,10 +16,11 @@ export function Card({ title, sub, action, children, flat, className = '' }: { t
   );
 }
 
-export function PageHead({ title, sub, actions }: { title: ReactNode; sub?: ReactNode; actions?: ReactNode }) {
+export function PageHead({ title, sub, actions, eyebrow }: { title: ReactNode; sub?: ReactNode; actions?: ReactNode; eyebrow?: ReactNode }) {
   return (
     <div className="page-head">
       <div>
+        {eyebrow ? <div className="page-head__eyebrow">{eyebrow}</div> : null}
         <h1>{title}</h1>
         {sub ? <p>{sub}</p> : null}
       </div>
@@ -55,7 +56,7 @@ export function Notice({ tone, icon, children }: { tone: 'green' | 'amber' | 're
   );
 }
 
-/** A number in mono (kept LTR) followed by its unit in running text — safe inside Arabic sentences. */
+/** A number with tabular figures (kept LTR) followed by its unit in running text — safe inside Arabic sentences. */
 export function Money({ value, unit, digits = 0 }: { value: number; unit: string; digits?: number }) {
   return (
     <span className="whitespace-nowrap">

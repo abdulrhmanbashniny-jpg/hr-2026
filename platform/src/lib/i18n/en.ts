@@ -1,8 +1,10 @@
 import type { Dictionary } from './ar';
+import { consoleEn } from './console-en';
 
 export const en: Dictionary = {
   meta: { dir: 'ltr', locale: 'en', product: 'Mutabaa', tagline: 'Government compliance, fleet and workforce follow-up in one screen' },
   common: {
+    theme: 'Appearance',
     save: 'Save',
     saved: 'Changes saved.',
     saving: 'Saving…',
@@ -136,6 +138,7 @@ export const en: Dictionary = {
     pastDue: 'Renewal failed; you have a short grace period.',
   },
   auth: {
+    disabled: 'This account is disabled. Contact the platform team.',
     loginTitle: 'Sign in',
     loginSubtitle: "Enter your company's workspace",
     email: 'Email',
@@ -780,6 +783,7 @@ export const en: Dictionary = {
     openLink: 'Open link',
     secure: 'Secure temporary link via Mutabaa',
   },
+  console: consoleEn,
   landing: {
     nav: { features: 'Features', pricing: 'Pricing', login: 'Sign in', start: 'Start free' },
     heroTitle: 'Never miss an iqama renewal, a vehicle inspection or a CR expiry again',
@@ -797,5 +801,19 @@ export const en: Dictionary = {
     pricingTitle: 'Simple plans',
     pricingSub: 'Every plan starts with a 7-day free trial with all features.',
     footer: 'Mutabaa — the government-compliance platform for Saudi companies.',
+    badge: 'New: a glass dashboard and smarter alerts',
+    heroTitleA: 'Your compliance,',
+    heroTitleB: 'always under control.',
+    trust: ['7-day free trial', 'No credit card', 'Arabic and English'],
+    stepsTitle: 'Three steps to start',
+    steps: [
+      { t: 'Export the files as they are', d: 'From Muqeem, GOSI, Tamm and Logisti — no edits.' },
+      { t: 'Upload them together', d: 'We recognise each template, clean it, and link each employee to their vehicle and card.' },
+      { t: 'Get the alerts', d: 'Before every deadline, on Telegram, WhatsApp and e-mail, with a "Renewed" button.' },
+    ],
+    featuresTitle: 'Everything compliance needs, in one platform',
+    popular: 'Most popular',
+    perMonthShort: '/ month',
+    mock: { title: 'Overview', residents: 'Residents', saudization: 'Saudization', fleet: 'Fleet readiness', alerts: 'Alerts', notifTitle: 'Renewal alert', notifBody: "A truck driver's iqama expires in 7 days", renewed: 'Renewed', snooze: 'Snooze' },
   },
 };

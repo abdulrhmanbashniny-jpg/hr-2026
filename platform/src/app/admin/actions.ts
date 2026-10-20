@@ -3,63 +3,16 @@
 import { eq } from 'drizzle-orm';
 import { revalidatePath } from 'next/cache';
 import { db } from '@/db';
-import { payments, plans, promoCodes, subscriptions, tenants } from '@/db/schema';
+import { payments, plans, promoCodes } from '@/db/schema';
 import type { ActionResult } from '@/lib/action-result';
 import { bool, num, optStr, runAction, str } from '@/lib/actions';
 import { audit } from '@/lib/audit';
 import { requireSuperAdmin } from '@/lib/auth/guards';
 import { activatePayment } from '@/lib/billing/activate';
-import { periodEnd } from '@/lib/billing/pricing';
 import { env } from '@/lib/env';
 import { f, getI18n } from '@/lib/i18n';
 import { runDailyJob } from '@/lib/notifications/dispatch';
 import { setWebhook, telegramEnabled } from '@/lib/notifications/telegram';
-
-export async function extendTrial(tenantId: string): Promise<ActionResult> {
-  return runAction(async () => {
-    const s = await requireSuperAdmin();
-    const { t } = await getI18n();
-    const [sub] = await db.select().from(subscriptions).where(eq(subscriptions.tenantId, tenantId));
-    if (!sub) return { ok: false, error: t.common.error };
-    const base = sub.trialEndsAt && sub.trialEndsAt > new Date() ? sub.trialEndsAt : new Date();
-    await db.update(subscriptions).set({ status: 'trialing', trialEndsAt: new Date(base.getTime() + 7 * 86_400_000), updatedAt: new Date() }).where(eq(subscriptions.id, sub.id));
-    await audit({ tenantId, userId: s.user.id, action: 'admin.trial_extended', entityType: 'subscription', entityId: sub.id, summary: 'تمديد التجربة 7 أيام من إدارة المنصة' });
-    revalidatePath('/admin');
-    return { ok: true, message: t.settings.saved };
-  });
-}
-
-export async function activatePlan(tenantId: string, _prev: ActionResult | null, form: FormData): Promise<ActionResult> {
-  return runAction(async () => {
-    const s = await requireSuperAdmin();
-    const { t } = await getI18n();
-    const planId = str(form, 'planId');
-    const cycle: 'monthly' | 'yearly' = str(form, 'cycle') === 'yearly' ? 'yearly' : 'monthly';
-    const [plan] = await db.select().from(plans).where(eq(plans.id, planId));
-    if (!plan) return { ok: false, error: t.common.error };
-    const now = new Date();
-    const values = { planId, status: 'active' as const, billingCycle: cycle, currentPeriodStart: now, currentPeriodEnd: periodEnd(now, cycle), updatedAt: now };
-    const [sub] = await db.select().from(subscriptions).where(eq(subscriptions.tenantId, tenantId));
-    if (sub) await db.update(subscriptions).set(values).where(eq(subscriptions.id, sub.id));
-    else await db.insert(subscriptions).values({ ...values, tenantId });
-    await audit({ tenantId, userId: s.user.id, action: 'admin.plan_activated', entityType: 'subscription', summary: `تفعيل باقة ${plan.nameAr} (${cycle}) من إدارة المنصة` });
-    revalidatePath('/admin');
-    return { ok: true, message: t.settings.saved };
-  });
-}
-
-export async function toggleSuspend(tenantId: string): Promise<ActionResult> {
-  return runAction(async () => {
-    const s = await requireSuperAdmin();
-    const { t } = await getI18n();
-    const [tenant] = await db.select().from(tenants).where(eq(tenants.id, tenantId));
-    if (!tenant) return { ok: false, error: t.common.error };
-    await db.update(tenants).set({ suspendedAt: tenant.suspendedAt ? null : new Date() }).where(eq(tenants.id, tenantId));
-    await audit({ tenantId, userId: s.user.id, action: tenant.suspendedAt ? 'admin.unsuspended' : 'admin.suspended', entityType: 'tenant', entityId: tenantId, summary: tenant.suspendedAt ? 'إلغاء إيقاف الشركة' : 'إيقاف الشركة' });
-    revalidatePath('/admin');
-    return { ok: true, message: t.settings.saved };
-  });
-}
 
 export async function savePlan(id: string | null, _prev: ActionResult | null, form: FormData): Promise<ActionResult> {
   return runAction(async () => {

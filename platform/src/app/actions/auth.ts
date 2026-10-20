@@ -45,6 +45,7 @@ export async function signIn(_prev: ActionResult | null, form: FormData): Promis
     return { ok: false, error: t.auth.invalid };
   }
   attempts.delete(key);
+  if (user.disabledAt) return { ok: false, error: t.auth.disabled };
   const [m] = await db.select().from(memberships).where(eq(memberships.userId, user.id)).limit(1);
   await createSession(user.id, m?.tenantId ?? null);
   await audit({ tenantId: m?.tenantId ?? null, userId: user.id, action: 'auth.sign_in', summary: `تسجيل دخول ${user.email}` });

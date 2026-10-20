@@ -15,7 +15,7 @@ export default async function LoginPage(props: PageProps<'/login'>) {
   const { next } = await props.searchParams;
   return (
     <div className="ui-card">
-      <h1 className="text-xl font-bold">{t.auth.loginTitle}</h1>
+      <h1 className="text-2xl font-bold">{t.auth.loginTitle}</h1>
       <p className="mb-5 text-sm text-muted">{t.auth.loginSubtitle}</p>
       <LoginForm next={typeof next === 'string' ? next : undefined} />
     </div>

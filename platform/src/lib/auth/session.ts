@@ -67,7 +67,7 @@ export async function destroySession() {
   (await cookies()).delete(SESSION_COOKIE);
 }
 
-export async function setActiveTenant(tenantId: string) {
+export async function setActiveTenant(tenantId: string | null) {
   const sid = await readSessionId();
   if (sid) await db.update(sessions).set({ tenantId }).where(eq(sessions.id, sid));
 }
@@ -80,6 +80,8 @@ export interface SessionContext {
   settings: ReturnType<typeof resolveSettings>;
   subscription: ReturnType<typeof subscriptionState> | null;
   memberships: { tenantId: string; tenantName: string; role: Role }[];
+  /** A platform admin inside a customer's workspace without being a member (support access). */
+  supportMode: boolean;
 }
 
 /** Loads the signed-in user, their active tenant and role. Memoised per request. */
@@ -92,7 +94,7 @@ export const getSession = cache(async (): Promise<SessionContext | null> => {
     .where(and(eq(sessions.id, sid), isNull(sessions.revokedAt), gt(sessions.expiresAt, new Date())));
   if (!s) return null;
   const [user] = await db.select().from(users).where(eq(users.id, s.userId));
-  if (!user) return null;
+  if (!user || user.disabledAt) return null;
 
   const ms = await db
     .select({ tenantId: memberships.tenantId, role: memberships.role, tenantName: tenants.name })
@@ -100,7 +102,9 @@ export const getSession = cache(async (): Promise<SessionContext | null> => {
     .innerJoin(tenants, eq(tenants.id, memberships.tenantId))
     .where(eq(memberships.userId, user.id));
 
-  const activeId = ms.find((m) => m.tenantId === s.tenantId)?.tenantId ?? ms[0]?.tenantId ?? null;
+  const member = ms.find((m) => m.tenantId === s.tenantId);
+  const supportMode = !member && !!s.tenantId && user.isSuperAdmin;
+  const activeId = member?.tenantId ?? (supportMode ? s.tenantId : (ms[0]?.tenantId ?? null));
   let tenant: SessionContext['tenant'] = null;
   let settings = resolveSettings(null);
   let subscription: SessionContext['subscription'] = null;
@@ -117,9 +121,10 @@ export const getSession = cache(async (): Promise<SessionContext | null> => {
     sessionId: s.id,
     user: { id: user.id, email: user.email, name: user.name, phone: user.phone, isSuperAdmin: user.isSuperAdmin, locale: user.locale },
     tenant,
-    role: (ms.find((m) => m.tenantId === activeId)?.role as Role | undefined) ?? null,
+    role: supportMode && tenant ? 'owner' : ((ms.find((m) => m.tenantId === activeId)?.role as Role | undefined) ?? null),
     settings,
     subscription,
     memberships: ms.map((m) => ({ tenantId: m.tenantId, tenantName: m.tenantName, role: m.role as Role })),
+    supportMode: supportMode && !!tenant,
   };
 });
