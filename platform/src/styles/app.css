@@ -241,3 +241,11 @@ a.list__row:hover { background: var(--surface-hover); }
 [dir="rtl"] .inbox-item[data-status="new"] { box-shadow: inset -3px 0 0 var(--accent); }
 .inbox-item__head { display: flex; align-items: flex-start; gap: var(--space-12); }
 .inbox-item__body { white-space: pre-wrap; overflow-wrap: anywhere; font-size: 14.5px; line-height: 1.8; color: var(--ink); }
+.credit__version { padding: 1px 8px; border-radius: var(--radius-pill); background: var(--surface-muted); font-variant-numeric: tabular-nums; }
+
+/* What's new (release history). */
+.release { display: flex; flex-direction: column; gap: var(--space-8); padding: var(--space-16) 0; border-top: 1px solid var(--line-soft); }
+.release:first-of-type { border-top: 0; padding-top: 0; }
+.release__head { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-8); }
+.release__version { font: 700 22px/1 var(--font-display, inherit); font-variant-numeric: tabular-nums; direction: ltr; }
+.release__list { margin: 0; padding-inline-start: 1.2em; display: flex; flex-direction: column; gap: 4px; line-height: 1.8; }
