@@ -2,13 +2,8 @@
 
 import { MessageCircle, MessageSquareText } from 'lucide-react';
 import Link from 'next/link';
+import { DESIGNER } from '@/lib/designer';
 import { useI18n } from '@/lib/i18n/client';
-
-export const DESIGNER = {
-  whatsapp: '0537375580',
-  whatsappLink: 'https://wa.me/966537375580',
-  linkedin: 'https://www.linkedin.com/in/abdulrahman-bashnainy-hr',
-};
 
 function LinkedInGlyph({ size = 14 }: { size?: number }) {
   return (

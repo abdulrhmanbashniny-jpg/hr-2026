@@ -1,9 +1,10 @@
 import { MessageCircle } from 'lucide-react';
 import Link from 'next/link';
-import { DESIGNER, DesignerCredit } from '@/components/app/credit';
+import { DesignerCredit } from '@/components/app/credit';
 import { ContactForm } from '@/components/contact/contact-form';
 import { BrandTile } from '@/components/ui/brand';
 import { getSession } from '@/lib/auth/session';
+import { DESIGNER } from '@/lib/designer';
 import { getI18n } from '@/lib/i18n';
 
 export async function generateMetadata() {
