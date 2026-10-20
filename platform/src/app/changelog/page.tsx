@@ -7,7 +7,7 @@ import { APP_VERSION, RELEASES } from '@/lib/releases';
 
 export async function generateMetadata() {
   const { t } = await getI18n();
-  return { title: t.changelog.title, description: t.changelog.sub };
+  return { title: t.changelog.title, description: t.changelog.sub, alternates: { canonical: '/changelog' } };
 }
 
 export default async function ChangelogPage() {

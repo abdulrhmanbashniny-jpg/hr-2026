@@ -6,9 +6,14 @@ import { BrandGlyph } from '@/components/ui/brand';
 import { db } from '@/db';
 import { plans } from '@/db/schema';
 import { formatSar } from '@/lib/billing/pricing';
+import { DESIGNER } from '@/lib/designer';
+import { env } from '@/lib/env';
+import { APP_VERSION } from '@/lib/releases';
 import { f, getI18n } from '@/lib/i18n';
 
 export const dynamic = 'force-dynamic';
+
+export const metadata = { alternates: { canonical: '/' } };
 
 const FEATURE_ICONS = [FileSpreadsheet, Lock, RefreshCw, Layers, BellRing, Wallet];
 const FEATURE_TILES = ['var(--accent)', 'var(--accent-2)', 'var(--teal)', 'var(--purple)', 'var(--saffron)', 'var(--green)'];
@@ -18,8 +23,34 @@ export default async function Landing() {
   const L = t.landing;
   const list = await db.select().from(plans).where(eq(plans.isActive, true)).orderBy(asc(plans.sortOrder));
   const popularIdx = list.length > 2 ? 1 : -1;
+  // Structured data so search and answer engines can describe the product accurately.
+  const prices = list.map((p) => p.priceMonthly / 100).filter((n) => n > 0);
+  const jsonLd = {
+    '@context': 'https://schema.org',
+    '@graph': [
+      {
+        '@type': 'SoftwareApplication',
+        '@id': `${env.appUrl}/#app`,
+        name: t.meta.product,
+        alternateName: locale === 'ar' ? 'Mutabaa' : 'متابعة',
+        url: env.appUrl,
+        image: `${env.appUrl}/og.png`,
+        description: t.meta.description,
+        applicationCategory: 'BusinessApplication',
+        operatingSystem: 'Web',
+        softwareVersion: APP_VERSION,
+        inLanguage: ['ar', 'en'],
+        areaServed: { '@type': 'Country', name: 'Saudi Arabia' },
+        featureList: L.features.map((x) => `${x.t}: ${x.d}`),
+        ...(prices.length ? { offers: { '@type': 'AggregateOffer', priceCurrency: 'SAR', lowPrice: Math.min(...prices), highPrice: Math.max(...prices), offerCount: prices.length } } : {}),
+        creator: { '@id': `${env.appUrl}/#designer` },
+      },
+      { '@type': 'Person', '@id': `${env.appUrl}/#designer`, name: 'عبدالرحمن سالم باشنيني', alternateName: 'Abdulrahman Salem Bashnainy', sameAs: [DESIGNER.linkedin] },
+    ],
+  };
   return (
     <div className="marketing">
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd).replace(/</g, '\\u003c') }} />
       <header className="lp-nav glass">
         <Link href="/" className="flex items-center gap-2.5" style={{ color: 'var(--ink)', textDecoration: 'none' }}>
           <span className="ui-side__logo" style={{ width: 34, height: 34, borderRadius: 10 }}>

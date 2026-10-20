@@ -9,7 +9,7 @@ import { getI18n } from '@/lib/i18n';
 
 export async function generateMetadata() {
   const { t } = await getI18n();
-  return { title: t.contact.title, description: t.contact.sub };
+  return { title: t.contact.title, description: t.contact.sub, alternates: { canonical: '/contact' } };
 }
 
 export default async function ContactPage() {

@@ -2,7 +2,15 @@ import type { Dictionary } from './ar';
 import { consoleEn } from './console-en';
 
 export const en: Dictionary = {
-  meta: { dir: 'ltr', locale: 'en', product: 'Mutabaa', tagline: 'Government compliance, fleet and workforce follow-up in one screen' },
+  meta: {
+    dir: 'ltr',
+    locale: 'en',
+    product: 'Mutabaa',
+    tagline: 'Government compliance, fleet and workforce follow-up in one screen',
+    description: 'Mutabaa is a Saudi platform for company government compliance: iqamas (Muqeem), GOSI, fleet (Tamm), TGA operating cards and company documents, with alerts before every renewal.',
+    keywords: ['iqama renewal', 'Muqeem', 'GOSI', 'Nitaqat', 'Tamm', 'vehicle registration', 'periodic inspection', 'TGA operating card', 'Saudi compliance', 'HR', 'fleet management'],
+    ogAlt: 'Mutabaa dashboard: iqamas, GOSI, fleet readiness, alerts and expected government fees',
+  },
   common: {
     theme: 'Appearance',
     save: 'Save',

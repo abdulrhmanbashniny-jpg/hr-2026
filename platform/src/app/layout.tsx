@@ -1,16 +1,34 @@
 import type { Metadata, Viewport } from 'next';
 import type { ReactNode } from 'react';
 import { ToastProvider } from '@/components/ui/toast';
+import { DESIGNER } from '@/lib/designer';
+import { env } from '@/lib/env';
 import { getI18n, getTheme } from '@/lib/i18n';
 import { I18nProvider } from '@/lib/i18n/client';
 import './globals.css';
 
 export async function generateMetadata(): Promise<Metadata> {
   const { t } = await getI18n();
+  const title = `${t.meta.product} — ${t.meta.tagline}`;
   return {
-    title: { default: `${t.meta.product} — ${t.meta.tagline}`, template: `%s · ${t.meta.product}` },
-    description: t.meta.tagline,
+    metadataBase: new URL(env.appUrl),
+    title: { default: title, template: `%s · ${t.meta.product}` },
+    description: t.meta.description,
+    keywords: t.meta.keywords,
+    applicationName: t.meta.product,
+    authors: [{ name: 'عبدالرحمن سالم باشنيني', url: DESIGNER.linkedin }],
+    creator: 'عبدالرحمن سالم باشنيني',
     icons: { icon: '/icon.svg' },
+    openGraph: {
+      type: 'website',
+      siteName: t.meta.product,
+      title,
+      description: t.meta.description,
+      locale: t.meta.locale === 'ar' ? 'ar_SA' : 'en_US',
+      alternateLocale: t.meta.locale === 'ar' ? ['en_US'] : ['ar_SA'],
+      images: [{ url: '/og.png', width: 1200, height: 630, alt: t.meta.ogAlt }],
+    },
+    twitter: { card: 'summary_large_image', title, description: t.meta.description, images: ['/og.png'] },
   };
 }
 
