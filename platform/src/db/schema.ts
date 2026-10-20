@@ -60,6 +60,8 @@ export const users = pgTable('users', {
   phone: text('phone'),
   passwordHash: text('password_hash').notNull(),
   isSuperAdmin: boolean('is_super_admin').notNull().default(false),
+  /** Platform team role when `isSuperAdmin` (owner · admin · support · finance); null means owner. */
+  staffRole: text('staff_role'),
   locale: text('locale').notNull().default('ar'),
   lastLoginAt: timestamp('last_login_at', { withTimezone: true }),
   /** Set by the platform admin: the user cannot sign in and existing sessions stop working. */
@@ -546,7 +548,8 @@ export const shareLinks = pgTable('share_links', {
   documentIds: jsonb('document_ids').$type<string[]>().notNull(),
   recipient: text('recipient'),
   channel: text('channel'),
-  expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
+  /** Null means the link never expires (it can still be revoked). */
+  expiresAt: timestamp('expires_at', { withTimezone: true }),
   accessCount: integer('access_count').notNull().default(0),
   lastAccessedAt: timestamp('last_accessed_at', { withTimezone: true }),
   revokedAt: timestamp('revoked_at', { withTimezone: true }),
@@ -619,3 +622,11 @@ export const announcementDismissals = pgTable(
   },
   (t) => [primaryKey({ columns: [t.announcementId, t.userId] })],
 );
+
+/** Platform-wide configuration edited from the console (e.g. the platform mail server). */
+export const platformSettings = pgTable('platform_settings', {
+  key: text('key').primaryKey(),
+  value: jsonb('value').$type<Record<string, unknown>>().notNull(),
+  updatedBy: uuid('updated_by').references(() => users.id, { onDelete: 'set null' }),
+  updatedAt: updatedAt(),
+});

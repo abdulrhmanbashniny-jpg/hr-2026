@@ -4,6 +4,8 @@ import { Card, PageHead } from '@/components/ui/card';
 import { db } from '@/db';
 import { memberships, tenants, users } from '@/db/schema';
 import { countOf, f, getI18n } from '@/lib/i18n';
+import { staffRoleOf } from '@/lib/admin/staff';
+import { requireSuperAdmin } from '@/lib/auth/guards';
 
 export async function generateMetadata() {
   const { t } = await getI18n();
@@ -11,6 +13,7 @@ export async function generateMetadata() {
 }
 
 export default async function AdminUsers() {
+  await requireSuperAdmin('users:view');
   const { t, locale } = await getI18n();
   const [rows, ms] = await Promise.all([
     db.select().from(users).orderBy(desc(users.createdAt)),
@@ -24,6 +27,7 @@ export default async function AdminUsers() {
     email: u.email,
     companies: byUser.get(u.id) ?? [],
     isSuperAdmin: u.isSuperAdmin,
+    staffRole: staffRoleOf(u),
     disabled: !!u.disabledAt,
     lastLoginAt: u.lastLoginAt?.toISOString() ?? null,
     createdAt: u.createdAt.toISOString(),

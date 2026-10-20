@@ -28,6 +28,8 @@ import type { Role } from '@/lib/auth/rbac';
 import { formatSar } from '@/lib/billing/pricing';
 import { getI18n } from '@/lib/i18n';
 import { emailEnabled } from '@/lib/notifications/email';
+import { staffAbilities } from '@/lib/admin/staff';
+import { requireSuperAdmin } from '@/lib/auth/guards';
 
 export async function generateMetadata(props: PageProps<'/admin/tenants/[id]'>) {
   const { id } = await props.params;
@@ -37,6 +39,7 @@ export async function generateMetadata(props: PageProps<'/admin/tenants/[id]'>) 
 }
 
 export default async function AdminTenant(props: PageProps<'/admin/tenants/[id]'>) {
+  const me = await requireSuperAdmin('tenants:view');
   const { id } = await props.params;
   if (!/^[0-9a-f-]{36}$/.test(id)) notFound();
   const { t, locale } = await getI18n();
@@ -101,7 +104,7 @@ export default async function AdminTenant(props: PageProps<'/admin/tenants/[id]'
       .filter((m) => m.audience.kind === 'all' || (m.audience.kind === 'tenants' && m.audience.tenantIds?.includes(id)))
       .slice(0, 10)
       .map((m) => ({ id: m.id, title: m.title, createdAt: m.createdAt.toISOString(), channels: m.channels })),
-    emailEnabled: emailEnabled(null),
+    emailEnabled: await emailEnabled(null),
   };
 
   return (
@@ -110,7 +113,7 @@ export default async function AdminTenant(props: PageProps<'/admin/tenants/[id]'
         <ChevronRight size={16} className="ltr:rotate-180" />
         {t.console.tenants.back}
       </Link>
-      <TenantConsole vm={vm} plans={planRows.map((p) => ({ id: p.id, name: locale === 'ar' ? p.nameAr : p.nameEn }))} />
+      <TenantConsole vm={vm} plans={planRows.map((p) => ({ id: p.id, name: locale === 'ar' ? p.nameAr : p.nameEn }))} can={staffAbilities(me.user.staffRole)} />
     </>
   );
 }

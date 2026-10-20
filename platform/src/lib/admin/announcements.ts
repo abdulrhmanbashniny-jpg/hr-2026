@@ -86,7 +86,7 @@ export async function publishAnnouncement(input: {
 
   let emailSent = 0;
   let emailFailed = 0;
-  if (input.channels.includes('email') && emailEnabled(null)) {
+  if (input.channels.includes('email') && (await emailEnabled(null))) {
     const seen = new Set<string>();
     for (const m of live) {
       if (seen.has(m.email)) continue;

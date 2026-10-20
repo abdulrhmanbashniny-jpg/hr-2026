@@ -30,7 +30,7 @@ export default async function DocumentsPage(props: PageProps<'/app/documents'>) 
     db.select().from(authorities).where(or(isNull(authorities.tenantId), eq(authorities.tenantId, tid))),
     db.select().from(contacts).where(and(eq(contacts.tenantId, tid), eq(contacts.isActive, true))),
     db.select().from(documentBundles).where(eq(documentBundles.tenantId, tid)).orderBy(desc(documentBundles.createdAt)),
-    db.select().from(shareLinks).where(and(eq(shareLinks.tenantId, tid), isNull(shareLinks.revokedAt), gt(shareLinks.expiresAt, new Date()))).orderBy(desc(shareLinks.createdAt)),
+    db.select().from(shareLinks).where(and(eq(shareLinks.tenantId, tid), isNull(shareLinks.revokedAt), or(isNull(shareLinks.expiresAt), gt(shareLinks.expiresAt, new Date())))).orderBy(desc(shareLinks.createdAt)),
   ]);
   const items = bundles.length ? await db.select().from(documentBundleItems).where(inArray(documentBundleItems.bundleId, bundles.map((b) => b.id))) : [];
   const authById = new Map(auths.map((a) => [a.id, a]));
@@ -70,10 +70,10 @@ export default async function DocumentsPage(props: PageProps<'/app/documents'>) 
         authorities={auths.map((a) => ({ id: a.id, name: locale === 'ar' ? a.nameAr : a.nameEn }))}
         contacts={people.map((c) => ({ id: c.id, name: c.name, email: c.email, phone: c.phone, telegram: !!c.telegramChatId }))}
         bundles={bundles.map((b) => ({ id: b.id, name: b.name, description: b.description, documentIds: items.filter((i) => i.bundleId === b.id).map((i) => i.documentId) }))}
-        links={links.map((l) => ({ id: l.id, recipient: l.recipient, channel: l.channel, expiresAt: l.expiresAt.toISOString(), accessCount: l.accessCount, titles: l.documentIds.map((id) => docTitle.get(id) ?? '—') }))}
+        links={links.map((l) => ({ id: l.id, recipient: l.recipient, channel: l.channel, expiresAt: l.expiresAt?.toISOString() ?? null, accessCount: l.accessCount, titles: l.documentIds.map((id) => docTitle.get(id) ?? '—') }))}
         canWrite={can(s.role, 'documents:write') && (s.subscription?.canWrite ?? true)}
         canShare={can(s.role, 'documents:share') && (s.subscription?.canWrite ?? true)}
-        channels={{ email: emailEnabled(s.settings), telegram: telegramEnabled(), whatsappAuto: whatsappAutomatic(s.settings) }}
+        channels={{ email: await emailEnabled(s.settings), telegram: telegramEnabled(s.settings, s.tenant.id), whatsappAuto: whatsappAutomatic(s.settings) }}
         maxFileMb={MAX_DOCUMENT_MB}
       />
     </>

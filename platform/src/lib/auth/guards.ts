@@ -1,4 +1,5 @@
 import { redirect } from 'next/navigation';
+import { staffCan, type StaffPermission } from '@/lib/admin/staff';
 import { can, type Permission, type Role } from './rbac';
 import { getSession, type SessionContext } from './session';
 
@@ -35,8 +36,17 @@ export async function requirePermission(permission: Permission, opts: { allowRea
   return s;
 }
 
-export async function requireSuperAdmin(): Promise<SessionContext> {
+/** For console pages: any platform team member, or one whose role grants `permission`. */
+export async function requireSuperAdmin(permission?: StaffPermission): Promise<SessionContext> {
   const s = await requireUser();
   if (!s.user.isSuperAdmin) redirect('/app');
+  if (permission && !staffCan(s.user.staffRole, permission)) redirect('/admin?denied=1');
+  return s;
+}
+
+/** For console mutations: the team member's role must grant `permission`. */
+export async function requireStaff(permission: StaffPermission): Promise<SessionContext> {
+  const s = await requireUser();
+  if (!s.user.isSuperAdmin || !staffCan(s.user.staffRole, permission)) throw new ForbiddenError('forbidden');
   return s;
 }

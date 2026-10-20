@@ -4,6 +4,7 @@ import { Avatar } from '@/components/app/topbar';
 import { DataTable, type Column } from '@/components/ui/data-table';
 import { useI18n } from '@/lib/i18n/client';
 import { fmtDate } from '@/lib/i18n/format';
+import type { StaffRole } from '@/lib/admin/staff';
 
 export interface UserRowVM {
   id: string;
@@ -11,6 +12,7 @@ export interface UserRowVM {
   email: string;
   companies: string[];
   isSuperAdmin: boolean;
+  staffRole: StaffRole | null;
   disabled: boolean;
   lastLoginAt: string | null;
   createdAt: string;
@@ -45,7 +47,7 @@ export function UsersTable({ rows }: { rows: UserRowVM[] }) {
       cell: (r) => (
         <span className="flex flex-wrap gap-1">
           {r.disabled ? <span className="ui-pill ui-pill--red ui-pill--dot">{c.disabled}</span> : <span className="ui-pill ui-pill--green ui-pill--dot">{c.active}</span>}
-          {r.isSuperAdmin ? <span className="ui-pill ui-pill--blue">{c.superAdmin}</span> : null}
+          {r.staffRole ? <span className="ui-pill ui-pill--blue">{t.console.team.roles[r.staffRole]}</span> : null}
         </span>
       ),
       sort: (r) => (r.disabled ? 1 : 0),

@@ -3,6 +3,7 @@ import { Upload } from 'lucide-react';
 import Link from 'next/link';
 import { CardsTable, type CardVM } from '@/components/records/cards-table';
 import { ActiveFilter, StatusTabs } from '@/components/records/status-tabs';
+import { AddRecordButton } from '@/components/records/record-editor';
 import { Card, Empty, PageHead, Pill } from '@/components/ui/card';
 import { ExpiryMatrix } from '@/components/ui/matrix';
 import { db } from '@/db';
@@ -61,10 +62,13 @@ export default async function DriverCardsPage(props: PageProps<'/app/driver-card
         title={t.driverCards.title}
         sub={t.driverCards.subtitle}
         actions={
-          <Link href="/app/imports#driver_cards" className="ui-btn ui-btn--primary">
-            <Upload size={18} />
-            {t.nav.imports}
-          </Link>
+          <>
+            <AddRecordButton kind="driver_cards" canEdit={can(s.role, 'people:write') && (s.subscription?.canWrite ?? true)} />
+            <Link href="/app/imports#driver_cards" className="ui-btn ui-btn--primary">
+              <Upload size={18} />
+              {t.nav.imports}
+            </Link>
+          </>
         }
       />
       <div className="grid gap-4 lg:grid-cols-2">

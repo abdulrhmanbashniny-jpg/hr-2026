@@ -4,9 +4,10 @@ import { LayoutGrid, Menu, Shield } from 'lucide-react';
 import Link from 'next/link';
 import { LocaleButton, ThemeMenu, UserMenu } from '@/components/app/topbar';
 import { useNav } from '@/components/app/shell';
+import type { StaffRole } from '@/lib/admin/staff';
 import { useI18n } from '@/lib/i18n/client';
 
-export function AdminTopbar({ user, hasWorkspace }: { user: { name: string; email: string }; hasWorkspace: boolean }) {
+export function AdminTopbar({ user, hasWorkspace, role }: { user: { name: string; email: string }; hasWorkspace: boolean; role: StaffRole | null }) {
   const { t } = useI18n();
   const { setOpen } = useNav();
   return (
@@ -17,6 +18,7 @@ export function AdminTopbar({ user, hasWorkspace }: { user: { name: string; emai
       <span className="app-topbar__title">
         <Shield size={17} style={{ color: 'var(--accent)' }} />
         <span className="truncate">{t.console.name}</span>
+        {role && role !== 'owner' ? <span className="ui-pill ui-pill--gray hide-sm">{t.console.team.roles[role]}</span> : null}
       </span>
       <div className="ms-auto flex items-center gap-1">
         {hasWorkspace ? (

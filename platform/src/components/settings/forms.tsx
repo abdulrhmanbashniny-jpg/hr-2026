@@ -5,12 +5,15 @@ import { useActionState, useCallback, useState, useTransition } from 'react';
 import {
   changeRole,
   deleteContact,
+  disconnectTelegramBot,
   inviteMember,
   regenerateTelegramLink,
   removeMember,
   revokeInvitation,
   saveContact,
+  saveTelegramBot,
   testSmtp,
+  testTelegramBot,
   unlinkTelegram,
   updateCompany,
   updateRules,
@@ -217,6 +220,7 @@ interface ContactVM {
   receiveWeeklyReport: boolean;
   telegramUsername: string | null;
   telegramLinked: boolean;
+  telegramChatId: string | null;
   telegramLink: string | null;
 }
 
@@ -239,6 +243,9 @@ function ContactForm({ contact, onClose }: { contact: ContactVM | null; onClose:
           </Field>
           <Field label={t.common.email} htmlFor="c-email">
             <input id="c-email" name="email" type="email" defaultValue={contact?.email ?? ''} className="ui-input ui-input--ltr" />
+          </Field>
+          <Field label={t.settings.tgChatId} htmlFor="c-chat" hint={t.settings.tgChatIdHint}>
+            <input id="c-chat" name="telegramChatId" defaultValue={contact?.telegramChatId ?? ''} inputMode="numeric" className="ui-input ui-input--ltr ui-num" placeholder="123456789" />
           </Field>
         </div>
         <fieldset className="flex flex-col gap-2">
@@ -328,6 +335,7 @@ export function ContactsPanel({ contacts, canManage, botConfigured }: { contacts
             <div className="flex flex-wrap items-center gap-2 border-t pt-2" style={{ borderColor: 'var(--line-soft)' }}>
               <span className="text-sm">{t.settings.telegram}:</span>
               {c.telegramLinked ? <Pill tone="green">{f(t.settings.telegramLinked, { username: c.telegramUsername ?? '' })}</Pill> : <Pill tone="amber">{t.settings.telegramNotLinked}</Pill>}
+              {c.telegramChatId ? <span className="ui-num text-xs text-muted">ID {c.telegramChatId}</span> : null}
               {canManage && botConfigured ? (
                 c.telegramLinked ? (
                   <button type="button" className="ui-btn ui-btn--ghost ui-btn--sm" disabled={pending} onClick={() => run(() => unlinkTelegram(c.id))}>
@@ -356,6 +364,92 @@ export function ContactsPanel({ contacts, canManage, botConfigured }: { contacts
   );
 }
 
+interface TelegramVM {
+  own: boolean;
+  username: string | null;
+  platformUsername: string | null;
+  botName: string;
+  groupChatId: string;
+  allowSummary: boolean;
+  allowAlerts: boolean;
+  allowDocuments: boolean;
+  allowActions: boolean;
+}
+
+function TelegramPanel({ tg, canEdit }: { tg: TelegramVM; canEdit: boolean }) {
+  const { t } = useI18n();
+  const { pending, run } = useRun();
+  const [state, action] = useActionState(saveTelegramBot, null);
+  useActionFeedback(state);
+  return (
+    <section className="flex flex-col gap-3">
+      <div className="flex flex-wrap items-center gap-3">
+        <span className="ui-kpi__icon" style={{ ['--tile' as string]: '#2aabee', width: 40, height: 40, borderRadius: 12 }}>
+          <Send size={19} />
+        </span>
+        <div className="min-w-0 flex-1">
+          <h2 className="ui-card__title">{t.settings.tgOwnBot}</h2>
+          <p className="ui-card__sub">{t.settings.tgOwnBotSub}</p>
+        </div>
+      </div>
+      {tg.own ? (
+        <Notice tone="green">
+          {f(t.settings.tgStatusOwn, { username: tg.username ?? '' })}
+          {tg.botName ? ` · ${tg.botName}` : ''}
+        </Notice>
+      ) : tg.platformUsername ? (
+        <Notice tone="blue">{f(t.settings.tgStatusPlatform, { username: tg.platformUsername })}</Notice>
+      ) : (
+        <Notice tone="amber">{t.settings.tgStatusNone}</Notice>
+      )}
+      <form action={action} className="grid max-w-3xl gap-3.5 md:grid-cols-2">
+        <div className="md:col-span-2">
+          <Field label={t.settings.tgToken} htmlFor="tg-token" hint={tg.own ? t.settings.tgTokenKeep : t.settings.tgSteps}>
+            <input id="tg-token" name="botToken" type="password" disabled={!canEdit} className="ui-input ui-input--ltr" autoComplete="off" placeholder="123456789:AA…" />
+          </Field>
+        </div>
+        <div className="md:col-span-2">
+          <Field label={t.settings.tgGroup} htmlFor="tg-group" hint={t.settings.tgGroupHint}>
+            <input id="tg-group" name="groupChatId" defaultValue={tg.groupChatId} disabled={!canEdit} inputMode="numeric" className="ui-input ui-input--ltr ui-num" placeholder="-1001234567890" />
+          </Field>
+        </div>
+        <fieldset className="flex flex-col gap-2 md:col-span-2">
+          <legend className="ui-label mb-1">{t.settings.tgPerms}</legend>
+          {(
+            [
+              ['allowSummary', t.settings.tgAllowSummary, tg.allowSummary],
+              ['allowAlerts', t.settings.tgAllowAlerts, tg.allowAlerts],
+              ['allowDocuments', t.settings.tgAllowDocuments, tg.allowDocuments],
+              ['allowActions', t.settings.tgAllowActions, tg.allowActions],
+            ] as const
+          ).map(([name, label, on]) => (
+            <label key={name} className="flex items-center gap-2 text-sm">
+              <input type="checkbox" name={name} defaultChecked={on} disabled={!canEdit} className="ui-check" />
+              {label}
+            </label>
+          ))}
+        </fieldset>
+        {canEdit ? (
+          <div className="flex flex-wrap gap-2 md:col-span-2">
+            <SubmitButton>{tg.own ? t.settings.tgSave : t.settings.tgConnect}</SubmitButton>
+            <button type="button" className="ui-btn ui-btn--outline" disabled={pending || (!tg.own && !tg.platformUsername)} onClick={() => run(() => testTelegramBot())}>
+              <Send size={18} />
+              {t.settings.tgTest}
+            </button>
+            {tg.own ? (
+              <button type="button" className="ui-btn ui-btn--danger" disabled={pending} onClick={() => window.confirm(`${t.settings.tgDisconnect}?`) && run(() => disconnectTelegramBot())}>
+                <Unlink size={18} />
+                {t.settings.tgDisconnect}
+              </button>
+            ) : null}
+          </div>
+        ) : null}
+        <p className="ui-hint md:col-span-2">{t.settings.tgRelinkNote}</p>
+      </form>
+    </section>
+  );
+}
+
 export function ChannelsForms({
   smtp,
   whatsapp,
@@ -364,7 +458,7 @@ export function ChannelsForms({
 }: {
   smtp: TenantSettings['smtp'] & { hasPassword: boolean };
   whatsapp: TenantSettings['whatsapp'] & { hasToken: boolean; hasAuth: boolean };
-  telegram: { configured: boolean; username: string };
+  telegram: TelegramVM;
   canEdit: boolean;
 }) {
   const { t } = useI18n();
@@ -376,17 +470,7 @@ export function ChannelsForms({
   useActionFeedback(waState);
   return (
     <div className="flex flex-col gap-8">
-      <section className="flex flex-col gap-3">
-        <h2 className="ui-card__title">{t.settings.telegramTitle}</h2>
-        <p className="ui-card__sub">{t.settings.telegramSub}</p>
-        {telegram.configured ? (
-          <Notice tone="green">
-            {t.settings.botUsername}: <span className="ltr">@{telegram.username}</span>
-          </Notice>
-        ) : (
-          <Notice tone="amber">{t.settings.botNotConfigured}</Notice>
-        )}
-      </section>
+      <TelegramPanel tg={telegram} canEdit={canEdit} />
 
       <section className="flex flex-col gap-3">
         <h2 className="ui-card__title">{t.settings.smtpTitle}</h2>

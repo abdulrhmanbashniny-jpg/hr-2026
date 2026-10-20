@@ -1,6 +1,7 @@
 import nodemailer from 'nodemailer';
 import { decryptSecret } from '@/lib/crypto';
 import { env } from '@/lib/env';
+import { getPlatformSmtp, type PlatformSmtp } from '@/lib/platform-settings';
 import type { TenantSettings } from '@/lib/settings';
 
 export interface MailAttachment {
@@ -9,7 +10,28 @@ export interface MailAttachment {
   contentType: string;
 }
 
-function platformTransport() {
+function smtpTransport(s: { host: string; port: number; secure: boolean; user: string; passwordEnc: string | null; fromName: string; fromEmail: string }) {
+  return {
+    transport: nodemailer.createTransport({
+      host: s.host,
+      port: s.port,
+      secure: s.secure,
+      auth: s.user ? { user: s.user, pass: decryptSecret(s.passwordEnc) } : undefined,
+    }),
+    from: s.fromName ? `"${s.fromName.replace(/"/g, '')}" <${s.fromEmail || s.user}>` : s.fromEmail || s.user,
+  };
+}
+
+/** Where the platform's own mail server comes from: the console, the environment, or nowhere. */
+export async function platformMailSource(): Promise<'database' | 'env' | null> {
+  const saved = await getPlatformSmtp();
+  if (saved?.enabled && saved.host) return 'database';
+  return env.smtp.host ? 'env' : null;
+}
+
+async function platformTransport() {
+  const saved = await getPlatformSmtp();
+  if (saved?.enabled && saved.host) return smtpTransport(saved);
   if (!env.smtp.host) return null;
   return {
     transport: nodemailer.createTransport({
@@ -22,37 +44,34 @@ function platformTransport() {
   };
 }
 
-/** The company's own SMTP when enabled, otherwise the platform mailer. */
-export function mailerFor(settings: TenantSettings | null) {
+/** The company's own SMTP when enabled, otherwise the platform mailer (console settings, then environment). */
+export async function mailerFor(settings: TenantSettings | null) {
   const s = settings?.smtp;
-  if (s?.enabled && s.host) {
-    return {
-      transport: nodemailer.createTransport({
-        host: s.host,
-        port: s.port,
-        secure: s.secure,
-        auth: s.user ? { user: s.user, pass: decryptSecret(s.passwordEnc) } : undefined,
-      }),
-      from: s.fromName ? `"${s.fromName.replace(/"/g, '')}" <${s.fromEmail || s.user}>` : s.fromEmail || s.user,
-    };
-  }
+  if (s?.enabled && s.host) return smtpTransport(s);
   return platformTransport();
 }
 
-export function emailEnabled(settings: TenantSettings | null): boolean {
-  return !!mailerFor(settings);
+export async function emailEnabled(settings: TenantSettings | null): Promise<boolean> {
+  return !!(await mailerFor(settings));
 }
 
 export async function sendEmail(settings: TenantSettings | null, msg: { to: string; subject: string; html: string; text: string; attachments?: MailAttachment[] }) {
-  const mailer = mailerFor(settings);
+  const mailer = await mailerFor(settings);
   if (!mailer) throw new Error('No SMTP configured');
   await mailer.transport.sendMail({ from: mailer.from, to: msg.to, subject: msg.subject, html: msg.html, text: msg.text, attachments: msg.attachments });
 }
 
 export async function verifySmtp(settings: TenantSettings): Promise<void> {
-  const mailer = mailerFor(settings);
+  const mailer = await mailerFor(settings);
   if (!mailer) throw new Error('No SMTP configured');
   await mailer.transport.verify();
+}
+
+/** Checks and uses a platform mail server before it is saved. */
+export async function testPlatformSmtp(s: PlatformSmtp, to: string, msg: { subject: string; html: string; text: string }) {
+  const mailer = smtpTransport(s);
+  await mailer.transport.verify();
+  await mailer.transport.sendMail({ from: mailer.from, to, ...msg });
 }
 
 export function escapeHtml(s: string): string {

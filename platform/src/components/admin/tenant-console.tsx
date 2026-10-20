@@ -11,6 +11,7 @@ import { Field, SubmitButton, useFeedbackAction } from '@/components/ui/form';
 import { Modal } from '@/components/ui/modal';
 import { useToast } from '@/components/ui/toast';
 import type { ActionResult } from '@/lib/action-result';
+import type { StaffPermission } from '@/lib/admin/staff';
 import type { Role } from '@/lib/auth/rbac';
 import { useI18n } from '@/lib/i18n/client';
 import { f, fmtDate } from '@/lib/i18n/format';
@@ -278,14 +279,14 @@ function RoleSelect({ membershipId, role }: { membershipId: string; role: Role }
   );
 }
 
-function NotesCard({ vm }: { vm: TenantDetailVM }) {
+function NotesCard({ vm, canEdit }: { vm: TenantDetailVM; canEdit: boolean }) {
   const { t, locale } = useI18n();
   const c = t.console.tenants;
   const [, action] = useFeedbackAction(addTenantNote.bind(null, vm.id));
   const { pending, run } = useRun();
   return (
     <Card title={c.notes} sub={c.notesHint} flat>
-      <form action={action} className="flex flex-col gap-2 p-4" key={vm.notes.length}>
+      <form action={action} className="flex flex-col gap-2 p-4" key={vm.notes.length} hidden={!canEdit}>
         <textarea name="body" required className="ui-textarea" style={{ minHeight: 80 }} placeholder={c.notePlaceholder} />
         <SubmitButton variant="outline" className="self-start">
           <Plus size={16} />
@@ -302,9 +303,11 @@ function NotesCard({ vm }: { vm: TenantDetailVM }) {
                   {n.author ?? '—'} · {fmtDate(n.createdAt, locale, true)}
                 </div>
               </div>
-              <button type="button" className="ui-btn ui-btn--ghost ui-btn--icon" aria-label={t.common.delete} disabled={pending} onClick={() => window.confirm(`${t.common.delete}?`) && run(() => deleteTenantNote(n.id))}>
-                <Trash2 size={15} />
-              </button>
+              {canEdit ? (
+                <button type="button" className="ui-btn ui-btn--ghost ui-btn--icon" aria-label={t.common.delete} disabled={pending} onClick={() => window.confirm(`${t.common.delete}?`) && run(() => deleteTenantNote(n.id))}>
+                  <Trash2 size={15} />
+                </button>
+              ) : null}
             </div>
           ))}
         </div>
@@ -315,7 +318,7 @@ function NotesCard({ vm }: { vm: TenantDetailVM }) {
   );
 }
 
-export function TenantConsole({ vm, plans }: { vm: TenantDetailVM; plans: { id: string; name: string }[] }) {
+export function TenantConsole({ vm, plans, can }: { vm: TenantDetailVM; plans: { id: string; name: string }[]; can: Record<StaffPermission, boolean> }) {
   const { t, locale } = useI18n();
   const c = t.console.tenants;
   const [dialog, setDialog] = useState<null | 'extend' | 'sub' | 'edit' | 'delete' | 'message' | 'member'>(null);
@@ -336,38 +339,52 @@ export function TenantConsole({ vm, plans }: { vm: TenantDetailVM; plans: { id: 
               <span>{f(c.joined, { date: fmtDate(vm.createdAt, locale) })}</span>
             </span>
           </div>
-          <form action={enterWorkspace.bind(null, vm.id)}>
-            <button type="submit" className="ui-btn ui-btn--primary" title={c.enterHint}>
-              <LogIn size={17} />
-              {c.enter}
-            </button>
-          </form>
+          {can['tenants:enter'] ? (
+            <form action={enterWorkspace.bind(null, vm.id)}>
+              <button type="submit" className="ui-btn ui-btn--primary" title={c.enterHint}>
+                <LogIn size={17} />
+                {c.enter}
+              </button>
+            </form>
+          ) : null}
         </div>
         <div className="action-bar mt-5">
-          <button type="button" className="ui-btn ui-btn--outline ui-btn--sm" onClick={() => setDialog('message')}>
-            <Megaphone size={15} />
-            {c.message}
-          </button>
-          <button type="button" className="ui-btn ui-btn--outline ui-btn--sm" onClick={() => setDialog('sub')}>
-            <Settings2 size={15} />
-            {c.manageSub}
-          </button>
-          <button type="button" className="ui-btn ui-btn--outline ui-btn--sm" onClick={() => setDialog('extend')}>
-            <CalendarPlus size={15} />
-            {c.extend}
-          </button>
-          <button type="button" className="ui-btn ui-btn--outline ui-btn--sm" onClick={() => setDialog('edit')}>
-            <Pencil size={15} />
-            {c.edit}
-          </button>
-          <button type="button" className={`ui-btn ui-btn--sm ${vm.suspended ? 'ui-btn--outline' : 'ui-btn--danger'}`} disabled={pending} onClick={() => window.confirm(`${vm.suspended ? c.unsuspend : c.suspend}: ${vm.name}?`) && run(() => toggleSuspend(vm.id))}>
-            {vm.suspended ? <Play size={15} /> : <Pause size={15} />}
-            {vm.suspended ? c.unsuspend : c.suspend}
-          </button>
-          <button type="button" className="ui-btn ui-btn--danger ui-btn--sm ms-auto" onClick={() => setDialog('delete')}>
-            <Trash2 size={15} />
-            {c.delete}
-          </button>
+          {can['messages:send'] ? (
+            <button type="button" className="ui-btn ui-btn--outline ui-btn--sm" onClick={() => setDialog('message')}>
+              <Megaphone size={15} />
+              {c.message}
+            </button>
+          ) : null}
+          {can['billing:manage'] ? (
+            <>
+              <button type="button" className="ui-btn ui-btn--outline ui-btn--sm" onClick={() => setDialog('sub')}>
+                <Settings2 size={15} />
+                {c.manageSub}
+              </button>
+              <button type="button" className="ui-btn ui-btn--outline ui-btn--sm" onClick={() => setDialog('extend')}>
+                <CalendarPlus size={15} />
+                {c.extend}
+              </button>
+            </>
+          ) : null}
+          {can['tenants:manage'] ? (
+            <>
+              <button type="button" className="ui-btn ui-btn--outline ui-btn--sm" onClick={() => setDialog('edit')}>
+                <Pencil size={15} />
+                {c.edit}
+              </button>
+              <button type="button" className={`ui-btn ui-btn--sm ${vm.suspended ? 'ui-btn--outline' : 'ui-btn--danger'}`} disabled={pending} onClick={() => window.confirm(`${vm.suspended ? c.unsuspend : c.suspend}: ${vm.name}?`) && run(() => toggleSuspend(vm.id))}>
+                {vm.suspended ? <Play size={15} /> : <Pause size={15} />}
+                {vm.suspended ? c.unsuspend : c.suspend}
+              </button>
+            </>
+          ) : null}
+          {can['tenants:delete'] ? (
+            <button type="button" className="ui-btn ui-btn--danger ui-btn--sm ms-auto" onClick={() => setDialog('delete')}>
+              <Trash2 size={15} />
+              {c.delete}
+            </button>
+          ) : null}
         </div>
       </Card>
 
@@ -386,10 +403,12 @@ export function TenantConsole({ vm, plans }: { vm: TenantDetailVM; plans: { id: 
             title={c.members}
             sub={`${vm.members.length}`}
             action={
-              <button type="button" className="ui-btn ui-btn--outline ui-btn--sm" onClick={() => setDialog('member')}>
-                <Plus size={15} />
-                {c.addMember}
-              </button>
+              can['tenants:manage'] ? (
+                <button type="button" className="ui-btn ui-btn--outline ui-btn--sm" onClick={() => setDialog('member')}>
+                  <Plus size={15} />
+                  {c.addMember}
+                </button>
+              ) : undefined
             }
             flat
           >
@@ -406,10 +425,16 @@ export function TenantConsole({ vm, plans }: { vm: TenantDetailVM; plans: { id: 
                     </div>
                   </Link>
                   <span className="hide-sm text-xs text-muted">{m.lastLoginAt ? fmtDate(m.lastLoginAt, locale, true) : t.console.users.never}</span>
-                  <RoleSelect membershipId={m.membershipId} role={m.role} />
-                  <button type="button" className="ui-btn ui-btn--ghost ui-btn--icon" aria-label={c.removeMember} title={c.removeMember} disabled={pending} onClick={() => window.confirm(`${c.removeMember}: ${m.name}?`) && run(() => removeMember(m.membershipId))}>
-                    <UserMinus size={16} />
-                  </button>
+                  {can['tenants:manage'] ? (
+                    <>
+                      <RoleSelect membershipId={m.membershipId} role={m.role} />
+                      <button type="button" className="ui-btn ui-btn--ghost ui-btn--icon" aria-label={c.removeMember} title={c.removeMember} disabled={pending} onClick={() => window.confirm(`${c.removeMember}: ${m.name}?`) && run(() => removeMember(m.membershipId))}>
+                        <UserMinus size={16} />
+                      </button>
+                    </>
+                  ) : (
+                    <span className="ui-pill ui-pill--gray">{t.roles[m.role]}</span>
+                  )}
                 </div>
               ))}
             </div>
@@ -469,12 +494,14 @@ export function TenantConsole({ vm, plans }: { vm: TenantDetailVM; plans: { id: 
               <dt>{c.periodEnd}</dt>
               <dd>{fmtDate(vm.periodEnd, locale)}</dd>
             </dl>
-            <button type="button" className="ui-btn ui-btn--outline ui-btn--sm mt-4" onClick={() => setDialog('sub')}>
-              <Settings2 size={15} />
-              {c.manageSub}
-            </button>
+            {can['billing:manage'] ? (
+              <button type="button" className="ui-btn ui-btn--outline ui-btn--sm mt-4" onClick={() => setDialog('sub')}>
+                <Settings2 size={15} />
+                {c.manageSub}
+              </button>
+            ) : null}
           </Card>
-          <NotesCard vm={vm} />
+          <NotesCard vm={vm} canEdit={can['tenants:notes']} />
           <Card title={c.messages} flat>
             {vm.messages.length ? (
               <div className="list">

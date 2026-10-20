@@ -13,7 +13,7 @@ export const DEFAULT_EXCLUDED_DRIVER_OCCUPATIONS = ['رافعة شوكية', 'س
 export const DEFAULT_OPERATING_CARD_REGISTRATION_TYPES = ['نقل خاص', 'نقل عام'];
 export const DEFAULT_LIGHT_VEHICLE_KEYWORDS = ['بكب', 'بيك اب', 'ونيت', 'نصف نقل', 'خفيفة', 'سيدان', 'جيب', 'ستيشن', 'هاتشباك', 'دباب'];
 
-const smtpSchema = z.object({
+export const smtpSchema = z.object({
   enabled: z.boolean(),
   host: z.string(),
   port: z.number().int().min(1).max(65535),
@@ -32,6 +32,23 @@ const whatsappSchema = z.object({
   cloudTemplateLang: z.string(),
   webhookUrl: z.string(),
   webhookAuthHeaderEnc: z.string().nullable(),
+});
+
+const telegramSchema = z.object({
+  /** Use the company's own bot instead of the shared platform bot. */
+  enabled: z.boolean(),
+  botTokenEnc: z.string().nullable(),
+  botUsername: z.string(),
+  botName: z.string(),
+  webhookSecret: z.string(),
+  /** A group the bot posts the daily digest to (add the bot to the group and send /chatid). */
+  groupChatId: z.string(),
+  allowSummary: z.boolean(),
+  allowAlerts: z.boolean(),
+  allowDocuments: z.boolean(),
+  /** "Renewed" and "Snooze" buttons on alert messages. */
+  allowActions: z.boolean(),
+  connectedAt: z.string().nullable(),
 });
 
 export const tenantSettingsSchema = z.object({
@@ -64,6 +81,7 @@ export const tenantSettingsSchema = z.object({
   eosWageBasis: z.enum(['basic_housing', 'total']),
   smtp: smtpSchema,
   whatsapp: whatsappSchema,
+  telegram: telegramSchema,
   weeklyReportDay: z.number().int().min(0).max(6),
 });
 
@@ -110,6 +128,19 @@ export const DEFAULT_SETTINGS: TenantSettings = {
     webhookUrl: '',
     webhookAuthHeaderEnc: null,
   },
+  telegram: {
+    enabled: false,
+    botTokenEnc: null,
+    botUsername: '',
+    botName: '',
+    webhookSecret: '',
+    groupChatId: '',
+    allowSummary: true,
+    allowAlerts: true,
+    allowDocuments: true,
+    allowActions: true,
+    connectedAt: null,
+  },
   weeklyReportDay: 0,
 };
 
@@ -123,5 +154,6 @@ export function resolveSettings(stored: Partial<TenantSettings> | null | undefin
     gosi: { ...DEFAULT_SETTINGS.gosi, ...(s.gosi ?? {}) },
     smtp: { ...DEFAULT_SETTINGS.smtp, ...(s.smtp ?? {}) },
     whatsapp: { ...DEFAULT_SETTINGS.whatsapp, ...(s.whatsapp ?? {}) },
+    telegram: { ...DEFAULT_SETTINGS.telegram, ...(s.telegram ?? {}) },
   };
 }

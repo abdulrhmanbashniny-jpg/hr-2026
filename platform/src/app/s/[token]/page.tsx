@@ -1,6 +1,8 @@
 import { eq } from 'drizzle-orm';
 import { Download, ExternalLink, FileText, Lock } from 'lucide-react';
 import type { Metadata } from 'next';
+import { ShareCountdown } from '@/components/share/countdown';
+import { BrandTile } from '@/components/ui/brand';
 import { Notice } from '@/components/ui/card';
 import { db } from '@/db';
 import { tenants } from '@/db/schema';
@@ -16,51 +18,55 @@ export default async function SharePage(props: PageProps<'/s/[token]'>) {
   if (!resolved) {
     return (
       <main className="auth-wrap">
-        <div className="auth-card">
+        <div className="auth-card flex flex-col items-center gap-4">
+          <BrandTile size={52} />
           <Notice tone="red">{t.share.invalid}</Notice>
         </div>
       </main>
     );
   }
   const [tenant] = await db.select({ name: tenants.name }).from(tenants).where(eq(tenants.id, resolved.link.tenantId));
+  const expiresAt = resolved.link.expiresAt?.toISOString() ?? null;
   return (
     <main className="auth-wrap">
       <div className="auth-card flex flex-col gap-4" style={{ maxWidth: 640 }}>
-        <div className="text-center">
-          <span className="font-display text-2xl font-bold">{t.meta.product}</span>
+        <div className="flex flex-col items-center gap-2 text-center">
+          <BrandTile size={52} />
+          <h1 className="font-display text-2xl font-bold">{f(t.share.title, { company: tenant?.name ?? '' })}</h1>
+          {expiresAt ? <p className="text-sm text-muted">{f(t.share.expires, { date: fmtDate(expiresAt, locale, true) })}</p> : null}
         </div>
+        <ShareCountdown expiresAt={expiresAt} />
         <section className="ui-card ui-card--flat">
           <div className="ui-card__head">
-            <div>
-              <h1 className="ui-card__title">{f(t.share.title, { company: tenant?.name ?? '' })}</h1>
-              <p className="ui-card__sub">{f(t.share.expires, { date: fmtDate(resolved.link.expiresAt, locale, true) })}</p>
-            </div>
-            <Lock size={20} aria-hidden />
+            <h2 className="ui-card__title">
+              {t.share.files} · <span className="ui-num">{resolved.docs.length}</span>
+            </h2>
+            <Lock size={18} aria-hidden style={{ color: 'var(--muted)' }} />
           </div>
-          <ul>
+          <div className="list">
             {resolved.docs.map((d) => (
-              <li key={d.id} className="flex flex-wrap items-center justify-between gap-3 border-t px-5 py-3 first:border-t-0" style={{ borderColor: 'var(--line-soft)' }}>
-                <span className="flex items-center gap-2">
-                  <FileText size={18} />
-                  <span>
-                    <b>{d.title}</b>
-                    {d.expiryDate ? <span className="block text-xs text-muted ui-num">{d.expiryDate}</span> : null}
-                  </span>
+              <div key={d.id} className="list__row">
+                <span className="ui-kpi__icon" style={{ ['--tile' as string]: 'var(--accent)' }}>
+                  <FileText size={17} />
                 </span>
+                <div className="list__main">
+                  <div className="list__title">{d.title}</div>
+                  {d.expiryDate ? <div className="list__sub ui-num">{d.expiryDate}</div> : null}
+                </div>
                 {d.fileKey ? (
                   <a className="ui-btn ui-btn--primary ui-btn--sm" href={`/s/${token}/${d.id}`}>
                     <Download size={16} />
                     {t.share.download}
                   </a>
                 ) : d.externalUrl ? (
-                  <a className="ui-btn ui-btn--ghost ui-btn--sm" href={d.externalUrl} target="_blank" rel="noopener noreferrer">
+                  <a className="ui-btn ui-btn--outline ui-btn--sm" href={d.externalUrl} target="_blank" rel="noopener noreferrer">
                     <ExternalLink size={16} />
                     {t.share.openLink}
                   </a>
                 ) : null}
-              </li>
+              </div>
             ))}
-          </ul>
+          </div>
         </section>
         <p className="text-center text-xs text-muted">{t.share.secure}</p>
       </div>

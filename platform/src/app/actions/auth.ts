@@ -131,7 +131,7 @@ export async function requestPasswordReset(_prev: ActionResult | null, form: For
   const { t } = await getI18n();
   const email = str(form, 'email').toLowerCase();
   const [user] = await db.select().from(users).where(eq(users.email, email));
-  if (user && emailEnabled(null)) {
+  if (user && (await emailEnabled(null))) {
     const token = randomToken(32);
     await db.insert(passwordResets).values({ userId: user.id, tokenHash: sha256(token), expiresAt: new Date(Date.now() + 60 * 60_000) });
     const link = `${env.appUrl}/reset-password/${token}`;
