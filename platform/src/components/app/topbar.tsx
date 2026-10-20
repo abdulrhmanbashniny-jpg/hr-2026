@@ -1,6 +1,6 @@
 'use client';
 
-import { Bell, Building2, Check, ChevronDown, Languages, LogOut, Menu, Monitor, Moon, Settings, Shield, Sun, UserRound } from 'lucide-react';
+import { Bell, Building2, Check, ChevronDown, Languages, LogOut, Menu, MessageSquareText, Monitor, Moon, Settings, Shield, Sun, UserRound } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useEffect, useRef, useState, useTransition, type ReactNode } from 'react';
@@ -221,6 +221,7 @@ export function Topbar({ user, tenantId, memberships, unread, isSuperAdmin }: { 
           links={[
             { href: '/app/settings', label: t.nav.settings, icon: <Settings size={16} /> },
             { href: '/app/notifications', label: t.nav.notifications, icon: <UserRound size={16} /> },
+            { href: '/contact', label: t.credit.contact, icon: <MessageSquareText size={16} /> },
           ]}
         />
       </div>

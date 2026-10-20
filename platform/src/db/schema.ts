@@ -630,3 +630,30 @@ export const platformSettings = pgTable('platform_settings', {
   updatedBy: uuid('updated_by').references(() => users.id, { onDelete: 'set null' }),
   updatedAt: updatedAt(),
 });
+
+// ───────────────────────── Contact us ─────────────────────────
+
+export const contactCategoryEnum = pgEnum('contact_category', ['problem', 'improvement', 'other']);
+export const contactStatusEnum = pgEnum('contact_status', ['new', 'in_progress', 'closed']);
+
+/** Messages sent from the public "Contact us" page to the platform team. */
+export const contactMessages = pgTable(
+  'contact_messages',
+  {
+    id: id(),
+    name: text('name').notNull(),
+    phone: text('phone').notNull(),
+    category: contactCategoryEnum('category').notNull(),
+    message: text('message').notNull(),
+    status: contactStatusEnum('status').notNull().default('new'),
+    /** Set when the sender was signed in. */
+    userId: uuid('user_id').references(() => users.id, { onDelete: 'set null' }),
+    tenantId: uuid('tenant_id').references(() => tenants.id, { onDelete: 'set null' }),
+    /** Hash of the sender's IP, only to limit how often one address can send. */
+    ipHash: text('ip_hash'),
+    handledBy: uuid('handled_by').references(() => users.id, { onDelete: 'set null' }),
+    handledAt: timestamp('handled_at', { withTimezone: true }),
+    createdAt: createdAt(),
+  },
+  (t) => [index('contact_messages_status_created').on(t.status, t.createdAt), index('contact_messages_ip_created').on(t.ipHash, t.createdAt)],
+);

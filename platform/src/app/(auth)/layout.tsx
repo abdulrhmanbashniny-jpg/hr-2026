@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import type { ReactNode } from 'react';
+import { DesignerCredit } from '@/components/app/credit';
 import { BrandTile } from '@/components/ui/brand';
 import { getI18n } from '@/lib/i18n';
 
@@ -15,6 +16,7 @@ export default async function AuthLayout({ children }: { children: ReactNode }) 
         </Link>
         {children}
       </div>
+      <DesignerCredit />
     </main>
   );
 }
