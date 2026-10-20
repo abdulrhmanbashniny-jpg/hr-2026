@@ -3,6 +3,8 @@
 import { MessageCircle, MessageSquareText } from 'lucide-react';
 import Link from 'next/link';
 import { DESIGNER } from '@/lib/designer';
+import { f } from '@/lib/i18n/format';
+import { APP_VERSION } from '@/lib/releases';
 import { useI18n } from '@/lib/i18n/client';
 
 function LinkedInGlyph({ size = 14 }: { size?: number }) {
@@ -37,6 +39,12 @@ export function DesignerCredit({ showContact = true }: { showContact?: boolean }
         <LinkedInGlyph />
         {c.linkedin}
       </a>
+      <span className="credit__sep" aria-hidden="true">
+        ·
+      </span>
+      <Link href="/changelog" className="credit__link credit__version" title={t.changelog.title}>
+        {f(c.version, { v: APP_VERSION })}
+      </Link>
       {showContact ? (
         <>
           <span className="credit__sep" aria-hidden="true">

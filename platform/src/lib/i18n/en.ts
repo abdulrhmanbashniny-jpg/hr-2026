@@ -888,6 +888,16 @@ export const en: Dictionary = {
     hours: 'working hours 8 am to 3 pm',
     linkedin: 'LinkedIn',
     contact: 'Contact us',
+    version: 'Version {v}',
+  },
+  changelog: {
+    title: "What's new",
+    sub: 'Release history of Mutabaa, newest first.',
+    current: 'Current version',
+    major: 'Major update',
+    minor: 'Small update',
+    rule: 'A small update raises the number after the dot (3.1 → 3.2); a major update raises the number before it (3.2 → 4.0).',
+    home: 'Home',
   },
   contact: {
     title: 'Contact us',

@@ -11,6 +11,7 @@ import { useToast } from '@/components/ui/toast';
 import { formatSar } from '@/lib/billing/pricing';
 import { useI18n } from '@/lib/i18n/client';
 import { fmtDate } from '@/lib/i18n/format';
+import { APP_VERSION } from '@/lib/releases';
 
 function useRun() {
   const toast = useToast();
@@ -302,6 +303,7 @@ export function SystemPanel({ status }: { status: { telegram: boolean; botUserna
   return (
     <div className="flex flex-col gap-5">
       <ul>
+        {row('Version', true, APP_VERSION)}
         {row('APP_URL', true, status.appUrl)}
         {row('Telegram bot (TELEGRAM_BOT_TOKEN)', status.telegram, status.botUsername ? `@${status.botUsername}` : undefined)}
         {row('Telegram webhook secret', status.webhookSecret)}
