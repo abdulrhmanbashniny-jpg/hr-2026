@@ -8,30 +8,18 @@ import type { ActionResult } from '@/lib/action-result';
 import { bool, runAction, str } from '@/lib/actions';
 import { audit } from '@/lib/audit';
 import { requirePermission } from '@/lib/auth/guards';
-import type { Permission } from '@/lib/auth/rbac';
 import { normalizeDateInput, toHijri } from '@/lib/dates';
 import { f, getI18n } from '@/lib/i18n';
 import { cleanCardNumber, cleanId, cleanNumber, normalizeArabic } from '@/lib/imports/normalize';
 import { TEMPLATES } from '@/lib/imports/templates';
+import { RECORD_PATHS, RECORD_PERMISSION, type RecordKind } from '@/lib/records/meta';
 import { syncTenantAlerts } from '@/lib/rules/sync';
 
-export type RecordKind = 'residents' | 'gosi' | 'vehicles' | 'operating_cards' | 'driver_cards';
+export type { RecordKind };
 
 const TABLES = { residents, gosi: gosiSubscribers, vehicles, operating_cards: operatingCards, driver_cards: driverCards } as const;
-const PERMISSION: Record<RecordKind, Permission> = {
-  residents: 'people:write',
-  gosi: 'people:write',
-  driver_cards: 'people:write',
-  vehicles: 'fleet:write',
-  operating_cards: 'fleet:write',
-};
-const PATHS: Record<RecordKind, string> = {
-  residents: '/app/residents',
-  gosi: '/app/gosi',
-  vehicles: '/app/fleet',
-  operating_cards: '/app/operating-cards',
-  driver_cards: '/app/driver-cards',
-};
+const PERMISSION = RECORD_PERMISSION;
+const PATHS = RECORD_PATHS;
 
 type FieldSpec = { type: 'date'; hijri?: string } | { type: 'bool' } | { type: 'text'; max: number } | { type: 'enum'; values: string[] } | { type: 'probation' } | { type: 'reviewed' };
 

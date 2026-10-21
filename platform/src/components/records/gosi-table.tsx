@@ -37,13 +37,16 @@ export function GosiTable({ rows, canEdit }: { rows: GosiVM[]; canEdit: boolean 
   const { t, locale } = useI18n();
   const money = (n: number) => <span className="ui-num">{fmtNumber(n)}</span>;
   const columns: Column<GosiVM>[] = [
-    { key: 'id', header: t.gosi.nationalId, cell: (r) => <Link href={`/app/people/${r.nationalId}`} className="ui-num">{r.nationalId}</Link>, sort: (r) => r.nationalId, csv: (r) => r.nationalId },
+    { key: 'id', header: t.gosi.nationalId, cell: () => null, csv: (r) => r.nationalId, csvOnly: true },
     {
       key: 'name',
       header: t.gosi.name,
       cell: (r) => (
         <div className="flex flex-col gap-1">
           <b>{r.name}</b>
+          <Link href={`/app/people/${r.nationalId}`} className="ui-num cell-sub" style={{ marginTop: 0, textAlign: 'start' }}>
+            {r.nationalId}
+          </Link>
           <span className="flex flex-wrap gap-1">
             <Pill tone={r.isSaudi ? 'green' : 'gray'}>{r.isSaudi ? t.gosi.saudi : (r.nationality ?? t.gosi.nonSaudi)}</Pill>
             {r.newSystemEligible ? <Pill tone="blue">{t.gosi.newSystem}</Pill> : null}
@@ -53,6 +56,7 @@ export function GosiTable({ rows, canEdit }: { rows: GosiVM[]; canEdit: boolean 
       ),
       sort: (r) => r.name,
       csv: (r) => r.name,
+      className: 'cell-name',
     },
     { key: 'occupation', header: t.gosi.occupation, cell: (r) => r.occupation ?? '—', sort: (r) => r.occupation, csv: (r) => r.occupation, hideSm: true },
     { key: 'total', header: t.gosi.totalWage, cell: (r) => money(r.totalWage), sort: (r) => r.totalWage, csv: (r) => r.totalWage },
