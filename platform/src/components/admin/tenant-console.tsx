@@ -2,7 +2,7 @@
 
 import { CalendarPlus, LogIn, Megaphone, Pause, Pencil, Play, Plus, Settings2, Trash2, UserMinus } from 'lucide-react';
 import Link from 'next/link';
-import { useState, useTransition } from 'react';
+import { useActionState, useState, useTransition } from 'react';
 import { sendAnnouncement } from '@/app/admin/messages/actions';
 import { addMember, addTenantNote, changeMemberRole, deleteTenant, deleteTenantNote, enterWorkspace, extendTrial, removeMember, toggleSuspend, updateSubscription, updateTenant } from '@/app/admin/tenants/actions';
 import { Avatar } from '@/components/app/topbar';
@@ -221,7 +221,38 @@ function MessageDialog({ vm, onClose }: { vm: TenantDetailVM; onClose: () => voi
 function AddMemberDialog({ tenantId, onClose }: { tenantId: string; onClose: () => void }) {
   const { t } = useI18n();
   const c = t.console.tenants;
-  const [, action] = useFeedbackAction(addMember.bind(null, tenantId), onClose);
+  const toast = useToast();
+  const [state, action] = useActionState(async (prev: ActionResult<{ url: string }> | null, form: FormData) => {
+    const r = await addMember(tenantId, prev, form);
+    if (!r.ok) toast(r.error, 'err');
+    else if (!r.data?.url) {
+      toast(r.message ?? t.common.saved, 'ok');
+      onClose();
+    }
+    return r;
+  }, null);
+  const url = state?.ok ? state.data?.url : undefined;
+  if (url) {
+    return (
+      <Modal open onClose={onClose} title={c.addMember}>
+        <Notice tone="blue">{c.memberInvited}</Notice>
+        <span className="ui-hint">{c.memberInviteLink}</span>
+        <div className="flex gap-2">
+          <input readOnly value={url} className="ui-input ui-input--ltr" onFocus={(e) => e.currentTarget.select()} />
+          <button
+            type="button"
+            className="ui-btn ui-btn--primary"
+            onClick={() => {
+              void navigator.clipboard?.writeText(url);
+              toast(t.common.copied, 'ok');
+            }}
+          >
+            {t.common.copy}
+          </button>
+        </div>
+      </Modal>
+    );
+  }
   return (
     <Modal open onClose={onClose} title={c.addMember}>
       <form action={action} className="grid gap-4 md:grid-cols-2">

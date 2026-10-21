@@ -4,6 +4,7 @@ import { parseYmd } from '@/lib/dates/hijri';
 import { cleanBool, cleanCardNumber, cleanId, cleanInt, cleanNumber, cleanText, headerKey, normalizeArabic } from './normalize';
 import { TEMPLATES, type FieldDef, type TemplateDef } from './templates';
 import { ImportError, TEMPLATE_KEYS, type FieldValue, type NormalizedRecord, type ParseResult, type ParsedRow, type RowIssue, type TemplateKey } from './types';
+import { inspectXlsxZip } from './zip-guard';
 
 const HEADER_SCAN_ROWS = 20;
 export const MAX_ROWS = 20_000;
@@ -158,8 +159,13 @@ function findHeader(workbook: ExcelJS.Workbook, candidates: TemplateKey[]): Head
 
 export async function loadWorkbook(buffer: ArrayBuffer | Uint8Array): Promise<ExcelJS.Workbook> {
   const workbook = new ExcelJS.Workbook();
+  const bytes = buffer instanceof Uint8Array ? buffer : new Uint8Array(buffer);
+  // Refuse archives that would expand far beyond any real export before anything is decompressed.
+  const zip = inspectXlsxZip(bytes);
+  if (!zip.ok) {
+    throw new ImportError(zip.problem === 'not_zip' ? 'unreadable' : 'too_large', zip.problem === 'not_zip' ? 'تعذّرت قراءة الملف. ارفع ملف Excel بصيغة ‎.xlsx كما صُدّر من المنصة الحكومية.' : 'الملف أكبر أو أعقد من ملفات التصدير الحكومية المعتادة (عدد الأوراق أو حجم البيانات بعد فك الضغط). صدّر الملف من المنصة الحكومية من جديد وارفعه كما هو.', { problem: zip.problem });
+  }
   try {
-    const bytes = buffer instanceof Uint8Array ? buffer : new Uint8Array(buffer);
     await workbook.xlsx.load(bytes as unknown as ArrayBuffer);
   } catch {
     throw new ImportError('unreadable', 'تعذّرت قراءة الملف. ارفع ملف Excel بصيغة ‎.xlsx كما صُدّر من المنصة الحكومية.');

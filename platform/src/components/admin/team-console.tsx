@@ -2,7 +2,7 @@
 
 import { Check, Copy, Minus, Plus, UserMinus } from 'lucide-react';
 import { useActionState, useState, useTransition } from 'react';
-import { addStaff, changeStaffRole, removeStaff } from '@/app/admin/team/actions';
+import { addStaff, changeStaffRole, removeStaff, revokeStaffInvite } from '@/app/admin/team/actions';
 import { Avatar } from '@/components/app/topbar';
 import { Card, Notice } from '@/components/ui/card';
 import { Field, SubmitButton } from '@/components/ui/form';
@@ -39,7 +39,7 @@ function useRun() {
   };
 }
 
-function AddStaffDialog({ onClose }: { onClose: () => void }) {
+function AddStaffDialog({ onClose, initialEmail }: { onClose: () => void; initialEmail: string }) {
   const { t } = useI18n();
   const c = t.console.team;
   const toast = useToast();
@@ -47,25 +47,22 @@ function AddStaffDialog({ onClose }: { onClose: () => void }) {
   const [state, action] = useActionState(async (prev: Awaited<ReturnType<typeof addStaff>> | null, form: FormData) => {
     const r = await addStaff(prev, form);
     if (!r.ok) toast(r.error, 'err');
-    else if (!r.data?.link) {
-      toast(r.message ?? t.common.saved, 'ok');
-      onClose();
-    }
     return r;
   }, null);
 
   const invite = state?.ok ? state.data : null;
   if (invite?.link) {
     return (
-      <Modal open onClose={onClose} title={c.invitedTitle}>
-        <Notice tone="green">{f(c.invited, { name: invite.name })}</Notice>
+      <Modal open onClose={onClose} title={c.invitedTitle2}>
+        <Notice tone="green">{c.inviteLinkInfo}</Notice>
+        <span className="ltr text-sm text-muted">{invite.email}</span>
         <div className="flex gap-2">
           <input readOnly value={invite.link} className="ui-input ui-input--ltr" onFocus={(e) => e.currentTarget.select()} />
           <button
             type="button"
             className="ui-btn ui-btn--primary"
             onClick={() => {
-              void navigator.clipboard?.writeText(invite.link!);
+              void navigator.clipboard?.writeText(invite.link);
               toast(t.common.copied, 'ok');
             }}
           >
@@ -82,14 +79,9 @@ function AddStaffDialog({ onClose }: { onClose: () => void }) {
     <Modal open onClose={onClose} title={c.addTitle}>
       <form action={action} className="flex flex-col gap-4">
         <p className="ui-hint">{c.addHint}</p>
-        <div className="grid gap-4 md:grid-cols-2">
-          <Field label={c.email} htmlFor="st-email" required>
-            <input id="st-email" name="email" type="email" required className="ui-input ui-input--ltr" autoComplete="off" />
-          </Field>
-          <Field label={c.name} htmlFor="st-name">
-            <input id="st-name" name="name" className="ui-input" />
-          </Field>
-        </div>
+        <Field label={c.email} htmlFor="st-email" required>
+          <input id="st-email" name="email" type="email" required defaultValue={initialEmail} className="ui-input ui-input--ltr" autoComplete="off" />
+        </Field>
         <fieldset className="flex flex-col gap-2">
           <legend className="ui-label mb-1">{c.role}</legend>
           {STAFF_ROLES.map((r) => (
@@ -139,10 +131,44 @@ function RoleSelect({ row }: { row: StaffVM }) {
   );
 }
 
-export function TeamConsole({ rows }: { rows: StaffVM[] }) {
+export interface StaffInviteVM {
+  id: string;
+  email: string;
+  role: StaffRole;
+  expiresAt: string;
+}
+
+function PendingInvites({ rows }: { rows: StaffInviteVM[] }) {
   const { t, locale } = useI18n();
   const c = t.console.team;
-  const [adding, setAdding] = useState(false);
+  const { pending, run } = useRun();
+  if (!rows.length) return null;
+  return (
+    <Card title={c.pending} sub={`${rows.length}`} flat>
+      <div className="list">
+        {rows.map((r) => (
+          <div key={r.id} className="list__row">
+            <div className="list__main">
+              <div className="list__title ltr" style={{ textAlign: 'start' }}>
+                {r.email}
+              </div>
+              <div className="list__sub">{f(c.expires, { date: fmtDate(r.expiresAt, locale, true) })}</div>
+            </div>
+            <span className={`ui-pill ${ROLE_TONE[r.role]}`}>{c.roles[r.role]}</span>
+            <button type="button" className="ui-btn ui-btn--ghost ui-btn--sm" disabled={pending} onClick={() => window.confirm(`${c.revokeInvite}: ${r.email}?`) && run(() => revokeStaffInvite(r.id))}>
+              {c.revokeInvite}
+            </button>
+          </div>
+        ))}
+      </div>
+    </Card>
+  );
+}
+
+export function TeamConsole({ rows, invites, inviteEmail }: { rows: StaffVM[]; invites: StaffInviteVM[]; inviteEmail: string }) {
+  const { t, locale } = useI18n();
+  const c = t.console.team;
+  const [adding, setAdding] = useState(!!inviteEmail);
   const { pending, run } = useRun();
 
   return (
@@ -219,7 +245,8 @@ export function TeamConsole({ rows }: { rows: StaffVM[] }) {
         </div>
       </Card>
 
-      {adding ? <AddStaffDialog onClose={() => setAdding(false)} /> : null}
+      <PendingInvites rows={invites} />
+      {adding ? <AddStaffDialog initialEmail={inviteEmail} onClose={() => setAdding(false)} /> : null}
     </>
   );
 }

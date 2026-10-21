@@ -26,13 +26,14 @@ export async function requireTenant(): Promise<TenantContext> {
 
 /**
  * For mutations: checks the permission and that the workspace can still write (trial or paid
- * subscription active, company not suspended). Super admins are never blocked by billing.
+ * subscription active, company not suspended). Platform staff in support mode are not blocked by
+ * billing or suspension, since they are there to fix it; their own memberships follow the rules.
  */
 export async function requirePermission(permission: Permission, opts: { allowReadOnly?: boolean } = {}): Promise<TenantContext> {
   const s = await requireTenant();
   if (!can(s.role, permission)) throw new ForbiddenError('forbidden');
-  if (s.tenant.suspended && !s.user.isSuperAdmin) throw new ForbiddenError('suspended');
-  if (!opts.allowReadOnly && !s.user.isSuperAdmin && s.subscription && !s.subscription.canWrite) throw new ForbiddenError('read_only');
+  if (s.tenant.suspended && !s.supportMode) throw new ForbiddenError('suspended');
+  if (!opts.allowReadOnly && !s.supportMode && s.subscription && !s.subscription.canWrite) throw new ForbiddenError('read_only');
   return s;
 }
 

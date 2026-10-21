@@ -1,10 +1,10 @@
 'use server';
 
-import { and, count, eq, isNotNull, ne } from 'drizzle-orm';
+import { and, eq, isNotNull } from 'drizzle-orm';
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 import { db } from '@/db';
-import { documents, memberships, plans, sessions, subscriptions, tenantNotes, tenants, users } from '@/db/schema';
+import { documents, invitations, memberships, plans, sessions, subscriptions, tenantNotes, tenants, users } from '@/db/schema';
 import type { ActionResult } from '@/lib/action-result';
 import { num, runAction, str } from '@/lib/actions';
 import { audit } from '@/lib/audit';
@@ -12,6 +12,8 @@ import { requireStaff, requireSuperAdmin } from '@/lib/auth/guards';
 import { hashPassword, passwordProblem } from '@/lib/auth/password';
 import type { Role } from '@/lib/auth/rbac';
 import { setActiveTenant } from '@/lib/auth/session';
+import { randomToken, sha256 } from '@/lib/crypto';
+import { env } from '@/lib/env';
 import { f, getI18n } from '@/lib/i18n';
 import { consoleAr } from '@/lib/i18n/console-ar';
 import { storage } from '@/lib/storage';
@@ -157,16 +159,14 @@ export async function deleteTenantNote(noteId: string): Promise<ActionResult> {
   });
 }
 
-async function ownersOf(tenantId: string, exceptMembershipId?: string) {
-  const [{ n }] = await db
-    .select({ n: count() })
-    .from(memberships)
-    .where(and(eq(memberships.tenantId, tenantId), eq(memberships.role, 'owner'), exceptMembershipId ? ne(memberships.id, exceptMembershipId) : undefined));
-  return n;
-}
-
-export async function addMember(tenantId: string, _prev: ActionResult | null, form: FormData): Promise<ActionResult> {
-  return runAction(async () => {
+/**
+ * Adds a member from the console. A new address gets an account with the temporary password the
+ * admin typed. An address that is already registered gets an invitation link instead: joining then
+ * needs that account's own password (or a reset sent to the address), so an account registered
+ * with someone else's e-mail cannot be pulled into a company by mistake.
+ */
+export async function addMember(tenantId: string, _prev: ActionResult<{ url: string }> | null, form: FormData): Promise<ActionResult<{ url: string }>> {
+  return runAction<{ url: string }>(async () => {
     const s = await requireStaff('tenants:manage');
     const { t } = await getI18n();
     const email = str(form, 'email').toLowerCase();
@@ -174,15 +174,20 @@ export async function addMember(tenantId: string, _prev: ActionResult | null, fo
     const role = str(form, 'role') as Role;
     if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email) || !ROLES.includes(role)) return { ok: false, error: t.common.error };
     let [user] = await db.select().from(users).where(eq(users.email, email));
-    if (!user) {
-      const password = str(form, 'password');
-      const problem = passwordProblem(password);
-      if (problem) return { ok: false, error: t.auth[problem as 'password_too_short' | 'password_too_weak'] };
-      if (name.length < 2) return { ok: false, error: t.common.required };
-      [user] = await db.insert(users).values({ email, name, passwordHash: await hashPassword(password) }).returning();
+    if (user) {
+      const [existing] = await db.select({ id: memberships.id }).from(memberships).where(and(eq(memberships.tenantId, tenantId), eq(memberships.userId, user.id)));
+      if (existing) return { ok: false, error: t.console.tenants.memberExists };
+      const token = randomToken(32);
+      await db.insert(invitations).values({ tenantId, email, role, tokenHash: sha256(token), invitedBy: s.user.id, expiresAt: new Date(Date.now() + 7 * 86_400_000) });
+      await audit({ tenantId, userId: s.user.id, action: 'admin.member_invited', entityType: 'invitation', summary: `دعوة ${email} بدور ${t.roles[role]} من إدارة المنصة` });
+      refresh(tenantId);
+      return { ok: true, message: t.console.tenants.memberInvited, data: { url: `${env.appUrl}/invite/${token}` } };
     }
-    const [existing] = await db.select({ id: memberships.id }).from(memberships).where(and(eq(memberships.tenantId, tenantId), eq(memberships.userId, user.id)));
-    if (existing) return { ok: false, error: t.console.tenants.memberExists };
+    const password = str(form, 'password');
+    const problem = passwordProblem(password);
+    if (problem) return { ok: false, error: t.auth[problem as 'password_too_short' | 'password_too_weak'] };
+    if (name.length < 2) return { ok: false, error: t.common.required };
+    [user] = await db.insert(users).values({ email, name, passwordHash: await hashPassword(password) }).returning();
     await db.insert(memberships).values({ tenantId, userId: user.id, role });
     await audit({ tenantId, userId: s.user.id, action: 'admin.member_added', entityType: 'user', entityId: user.id, summary: `إضافة ${user.email} بدور ${t.roles[role]} من إدارة المنصة` });
     refresh(tenantId);
@@ -197,8 +202,13 @@ export async function changeMemberRole(membershipId: string, _prev: ActionResult
     const role = str(form, 'role') as Role;
     const [m] = await db.select().from(memberships).where(eq(memberships.id, membershipId));
     if (!m || !ROLES.includes(role)) return { ok: false, error: t.common.error };
-    if (m.role === 'owner' && role !== 'owner' && (await ownersOf(m.tenantId, m.id)) === 0) return { ok: false, error: t.console.tenants.lastOwner };
-    await db.update(memberships).set({ role }).where(eq(memberships.id, membershipId));
+    const done = await db.transaction(async (tx) => {
+      const owners = await tx.select({ id: memberships.id }).from(memberships).where(and(eq(memberships.tenantId, m.tenantId), eq(memberships.role, 'owner'))).for('update');
+      if (m.role === 'owner' && role !== 'owner' && owners.filter((o) => o.id !== m.id).length === 0) return false;
+      await tx.update(memberships).set({ role }).where(eq(memberships.id, membershipId));
+      return true;
+    });
+    if (!done) return { ok: false, error: t.console.tenants.lastOwner };
     await audit({ tenantId: m.tenantId, userId: s.user.id, action: 'admin.member_role', entityType: 'user', entityId: m.userId, summary: `تغيير الدور إلى ${t.roles[role]} من إدارة المنصة` });
     refresh(m.tenantId);
     return { ok: true, message: t.console.tenants.roleChanged };
@@ -211,8 +221,13 @@ export async function removeMember(membershipId: string): Promise<ActionResult> 
     const { t } = await getI18n();
     const [m] = await db.select().from(memberships).where(eq(memberships.id, membershipId));
     if (!m) return { ok: false, error: t.common.error };
-    if (m.role === 'owner' && (await ownersOf(m.tenantId, m.id)) === 0) return { ok: false, error: t.console.tenants.lastOwner };
-    await db.delete(memberships).where(eq(memberships.id, membershipId));
+    const done = await db.transaction(async (tx) => {
+      const owners = await tx.select({ id: memberships.id }).from(memberships).where(and(eq(memberships.tenantId, m.tenantId), eq(memberships.role, 'owner'))).for('update');
+      if (m.role === 'owner' && owners.filter((o) => o.id !== m.id).length === 0) return false;
+      await tx.delete(memberships).where(eq(memberships.id, membershipId));
+      return true;
+    });
+    if (!done) return { ok: false, error: t.console.tenants.lastOwner };
     await db.update(sessions).set({ tenantId: null }).where(and(eq(sessions.userId, m.userId), eq(sessions.tenantId, m.tenantId)));
     await audit({ tenantId: m.tenantId, userId: s.user.id, action: 'admin.member_removed', entityType: 'user', entityId: m.userId, summary: 'إزالة مستخدم من الشركة من إدارة المنصة' });
     refresh(m.tenantId);

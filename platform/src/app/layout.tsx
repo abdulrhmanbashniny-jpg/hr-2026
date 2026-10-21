@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from 'next';
+import { headers } from 'next/headers';
 import type { ReactNode } from 'react';
 import { ToastProvider } from '@/components/ui/toast';
 import { DESIGNER } from '@/lib/designer';
@@ -47,6 +48,8 @@ const themeScript = `(function(){try{var d=document.documentElement;if(!d.getAtt
 export default async function RootLayout({ children }: { children: ReactNode }) {
   const { locale, t } = await getI18n();
   const theme = await getTheme();
+  // Set per request by the proxy with the Content-Security-Policy; inline scripts must carry it.
+  const nonce = (await headers()).get('x-nonce') ?? undefined;
   return (
     <html lang={locale} dir={t.meta.dir} data-theme={theme === 'system' ? undefined : theme} suppressHydrationWarning>
       <head>
@@ -56,7 +59,7 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
           rel="stylesheet"
           href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&family=Inter:wght@400..800&display=swap"
         />
-        <script dangerouslySetInnerHTML={{ __html: themeScript }} />
+        <script nonce={nonce} dangerouslySetInnerHTML={{ __html: themeScript }} />
       </head>
       <body className="ui-root">
         <div className="ambient" aria-hidden="true">

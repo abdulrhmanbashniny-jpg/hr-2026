@@ -24,13 +24,19 @@ export async function POST(req: Request) {
   const s = await getSession();
   if (!s?.tenant || !s.role) return NextResponse.json({ error: t.common.forbidden }, { status: 401 });
   if (s.tenant.suspended) return NextResponse.json({ error: t.common.suspended }, { status: 403 });
-  if (s.subscription && !s.subscription.canWrite && !s.user.isSuperAdmin) return NextResponse.json({ error: t.common.readOnly }, { status: 402 });
+  if (s.subscription && !s.subscription.canWrite && !s.supportMode) return NextResponse.json({ error: t.common.readOnly }, { status: 402 });
+  // Only roles that may import something get the server to parse a file at all.
+  if (!Object.values(TEMPLATE_PERMISSION).some((perm) => can(s.role, perm))) return NextResponse.json({ error: t.common.forbidden }, { status: 403 });
+  // Refuse oversized bodies before reading them into memory.
+  const declared = Number(req.headers.get('content-length') ?? 0);
+  if (!declared || declared > MAX_BYTES + 64 * 1024) return NextResponse.json({ error: t.imports.tooLarge }, { status: 413 });
 
   const form = await req.formData();
   const file = form.get('file');
   const requested = String(form.get('template') ?? 'auto');
   const expected = (TEMPLATE_KEYS as string[]).includes(requested) ? (requested as TemplateKey) : undefined;
   if (!(file instanceof File)) return NextResponse.json({ error: t.imports.wrongType }, { status: 400 });
+  if (expected && !can(s.role, TEMPLATE_PERMISSION[expected])) return NextResponse.json({ error: t.common.forbidden }, { status: 403 });
   if (file.size > MAX_BYTES) return NextResponse.json({ error: t.imports.tooLarge }, { status: 413 });
   if (!/\.xlsx$/i.test(file.name)) return NextResponse.json({ error: t.imports.wrongType }, { status: 415 });
 

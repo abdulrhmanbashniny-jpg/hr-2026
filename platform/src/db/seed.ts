@@ -125,10 +125,10 @@ async function seedPlatform() {
     await db.insert(authorities).values(GLOBAL_AUTHORITIES.map(([nameAr, nameEn]) => ({ tenantId: null, nameAr, nameEn })));
   }
 
-  const adminEmail = (process.env.SEED_ADMIN_EMAIL ?? 'admin@mutabaa.local').toLowerCase();
+  const adminEmail = (process.env.SEED_ADMIN_EMAIL || 'admin@mutabaa.local').toLowerCase();
   const [admin] = await db.select().from(users).where(eq(users.email, adminEmail));
   if (!admin) {
-    const password = process.env.SEED_ADMIN_PASSWORD ?? `Admin-${randomToken(9)}`;
+    const password = process.env.SEED_ADMIN_PASSWORD || `Admin-${randomToken(9)}`;
     await db.insert(users).values({ email: adminEmail, name: 'مشرف المنصة', passwordHash: await hashPassword(password), isSuperAdmin: true, staffRole: 'owner' });
     console.log(`Super admin: ${adminEmail} / ${password}`);
   }
@@ -146,7 +146,10 @@ async function resetDemo() {
   await db.delete(users).where(inArray(users.email, DEMO_USERS.map((u) => u.email)));
 }
 
-const DEMO_PASSWORD = process.env.SEED_DEMO_PASSWORD ?? 'Demo@2026pass';
+// The fixed demo password is for local development only. A deployed seed (Vercel or
+// NODE_ENV=production) uses SEED_DEMO_PASSWORD or a random one, since the source is readable.
+const DEPLOYED = !!process.env.VERCEL || process.env.NODE_ENV === 'production';
+const DEMO_PASSWORD = process.env.SEED_DEMO_PASSWORD || (DEPLOYED ? `Demo-${randomToken(12)}` : 'Demo@2026pass');
 const DEMO_USERS = [
   { email: 'owner@demo.mutabaa.local', name: 'عبدالرحمن الشهري', role: 'owner' as const },
   { email: 'gm@demo.mutabaa.local', name: 'خالد العتيبي', role: 'general_manager' as const },

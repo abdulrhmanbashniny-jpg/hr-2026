@@ -44,12 +44,14 @@ export default async function AdminUser(props: PageProps<'/admin/users/[id]'>) {
     createdAt: user.createdAt.toISOString(),
     lastLoginAt: user.lastLoginAt?.toISOString() ?? null,
     memberships: ms,
-    sessions: ss.map((x) => ({ id: x.id, userAgent: x.userAgent, ip: x.ip, createdAt: x.createdAt.toISOString(), current: x.id === s.sessionId })),
+    sessions: [],
     activity: activity.map(({ a, tenant }) => ({ id: a.id, summary: a.summary, tenant, createdAt: a.createdAt.toISOString() })),
   };
   // Team members' accounts are handled only by those who manage the team.
   const can = staffAbilities(s.user.staffRole);
   if (user.isSuperAdmin && !vm.isSelf && !can['team:manage']) Object.assign(can, { 'users:manage': false, 'users:support': false });
+  // Session ids are handles for ending sessions; send them only to someone allowed to end them.
+  if (can['users:support'] || vm.isSelf) vm.sessions = ss.map((x) => ({ id: x.id, userAgent: x.userAgent, ip: x.ip, createdAt: x.createdAt.toISOString(), current: x.id === s.sessionId }));
   return (
     <>
       <Link href="/admin/users" className="ui-btn ui-btn--ghost ui-btn--sm self-start">

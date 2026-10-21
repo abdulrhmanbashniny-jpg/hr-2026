@@ -18,6 +18,7 @@ import { getPlatformSmtp, getPlatformTelegram, savePlatformSmtp, savePlatformTel
 import { getMe, platformBot, sendMessage, setCommands, setWebhook } from '@/lib/notifications/telegram';
 import { platformAlertTarget } from '@/lib/contact';
 import { toLatinDigits } from '@/lib/imports/normalize';
+import { checkSmtpDestination } from '@/lib/net/outbound';
 
 export async function savePlan(id: string | null, _prev: ActionResult | null, form: FormData): Promise<ActionResult> {
   return runAction(async () => {
@@ -147,6 +148,13 @@ export async function savePlatformMail(_prev: ActionResult | null, form: FormDat
     const { t } = await getI18n();
     const next = await readSmtp(form);
     if (next.enabled && (!next.host || !(next.fromEmail || next.user))) return { ok: false, error: t.console.system.mailMissing };
+    if (next.host) {
+      try {
+        await checkSmtpDestination(next.host, next.port);
+      } catch {
+        return { ok: false, error: t.settings.destinationBlocked };
+      }
+    }
     await savePlatformSmtp(next, s.user.id);
     await audit({ tenantId: null, userId: s.user.id, action: 'admin.platform_mail', summary: next.enabled ? `ضبط بريد المنصة على ${next.host}` : 'إيقاف بريد المنصة المضبوط من اللوحة' });
     revalidatePath('/admin', 'layout');

@@ -1,5 +1,6 @@
 import { asc, eq } from 'drizzle-orm';
 import { ArrowLeft, BellRing, Check, FileSpreadsheet, IdCard, Layers, Lock, RefreshCw, Send, ShieldCheck, Sparkles, Truck, Wallet } from 'lucide-react';
+import { headers } from 'next/headers';
 import Link from 'next/link';
 import { DesignerCredit } from '@/components/app/credit';
 import { BrandGlyph } from '@/components/ui/brand';
@@ -50,7 +51,7 @@ export default async function Landing() {
   };
   return (
     <div className="marketing">
-      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd).replace(/</g, '\\u003c') }} />
+      <script type="application/ld+json" nonce={(await headers()).get('x-nonce') ?? undefined} dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd).replace(/</g, '\\u003c') }} />
       <header className="lp-nav glass">
         <Link href="/" className="flex items-center gap-2.5" style={{ color: 'var(--ink)', textDecoration: 'none' }}>
           <span className="ui-side__logo" style={{ width: 34, height: 34, borderRadius: 10 }}>

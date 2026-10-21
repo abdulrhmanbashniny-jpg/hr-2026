@@ -49,6 +49,8 @@ export default async function SettingsPage(props: PageProps<'/app/settings'>) {
     );
   } else if (tab === 'contacts') {
     const rows = await db.select().from(contacts).where(eq(contacts.tenantId, s.tenant.id)).orderBy(contacts.createdAt);
+    // Link codes are credentials: only people who manage contacts may receive them.
+    const manageContacts = can(s.role, 'contacts:manage');
     body = (
       <ContactsPanel
         contacts={rows.map((c) => ({
@@ -62,10 +64,10 @@ export default async function SettingsPage(props: PageProps<'/app/settings'>) {
           receiveWeeklyReport: c.receiveWeeklyReport,
           telegramUsername: c.telegramUsername,
           telegramLinked: !!c.telegramChatId,
-          telegramChatId: c.telegramChatId,
-          telegramLink: c.telegramLinkCode ? telegramDeepLink(bot, c.telegramLinkCode) : null,
+          telegramChatId: manageContacts ? c.telegramChatId : null,
+          telegramLink: manageContacts && c.telegramLinkCode && c.telegramLinkExpiresAt && c.telegramLinkExpiresAt > new Date() ? telegramDeepLink(bot, c.telegramLinkCode) : null,
         }))}
-        canManage={can(s.role, 'contacts:manage')}
+        canManage={manageContacts}
         botConfigured={!!bot?.username}
       />
     );

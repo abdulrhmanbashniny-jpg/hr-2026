@@ -8,7 +8,7 @@ import { env } from '@/lib/env';
 import { resolveSettings } from '@/lib/settings';
 import { subscriptionState } from '@/lib/billing/state';
 import type { Role } from './rbac';
-import { staffRoleOf, type StaffRole } from '@/lib/admin/staff';
+import { staffCan, staffRoleOf, type StaffRole } from '@/lib/admin/staff';
 
 export const SESSION_COOKIE = 'mutabaa_session';
 const SESSION_DAYS = 30;
@@ -104,7 +104,9 @@ export const getSession = cache(async (): Promise<SessionContext | null> => {
     .where(eq(memberships.userId, user.id));
 
   const member = ms.find((m) => m.tenantId === s.tenantId);
-  const supportMode = !member && !!s.tenantId && user.isSuperAdmin;
+  // Support access is re-checked on every request against the current role, so taking away
+  // tenants:enter (role change, removal from the team) ends it even in sessions opened earlier.
+  const supportMode = !member && !!s.tenantId && staffCan(staffRoleOf(user), 'tenants:enter');
   const activeId = member?.tenantId ?? (supportMode ? s.tenantId : (ms[0]?.tenantId ?? null));
   let tenant: SessionContext['tenant'] = null;
   let settings = resolveSettings(null);

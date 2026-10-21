@@ -1,32 +1,38 @@
 'use server';
 
-import { eq } from 'drizzle-orm';
+import { and, eq, isNull } from 'drizzle-orm';
 import { revalidatePath } from 'next/cache';
 import { db } from '@/db';
-import { passwordResets, users } from '@/db/schema';
+import { sessions, staffInvites, users } from '@/db/schema';
 import type { ActionResult } from '@/lib/action-result';
 import { runAction, str } from '@/lib/actions';
 import { isStaffRole } from '@/lib/admin/staff';
 import { isLastOwner } from '@/lib/admin/team';
 import { audit } from '@/lib/audit';
 import { requireStaff } from '@/lib/auth/guards';
-import { hashPassword } from '@/lib/auth/password';
 import { randomToken, sha256 } from '@/lib/crypto';
 import { env } from '@/lib/env';
-import { f, getI18n } from '@/lib/i18n';
+import { getI18n } from '@/lib/i18n';
 import { emailEnabled, emailLayout, escapeHtml, sendEmail } from '@/lib/notifications/email';
 
 const INVITE_DAYS = 7;
 
-type Invite = { link: string | null; emailed: boolean; name: string };
+type Invite = { link: string; emailed: boolean; email: string };
 
 function refresh() {
   revalidatePath('/admin', 'layout');
 }
 
+/** Signs a team member out everywhere, so a role change or removal applies at once. */
+async function revokeAllSessions(userId: string) {
+  await db.update(sessions).set({ revokedAt: new Date() }).where(and(eq(sessions.userId, userId), isNull(sessions.revokedAt)));
+}
+
 /**
- * Adds someone to the platform team. A registered e-mail is promoted in place; a new one gets an
- * account with an unusable password and a one-time link to set their own.
+ * Invites someone to the platform team. Nothing changes on any account until the recipient opens
+ * the link sent to that address and sets a new password: that proves they own the e-mail, and the
+ * acceptance replaces any existing password and ends the account's other sessions. Registering an
+ * account with someone else's address therefore never leads to a platform role.
  */
 export async function addStaff(_prev: ActionResult<Invite> | null, form: FormData): Promise<ActionResult<Invite>> {
   return runAction<Invite>(async () => {
@@ -38,25 +44,19 @@ export async function addStaff(_prev: ActionResult<Invite> | null, form: FormDat
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return { ok: false, error: `${c.email}: ${t.common.error}` };
     if (!isStaffRole(role)) return { ok: false, error: `${c.role}: ${t.common.required}` };
 
-    const [existing] = await db.select().from(users).where(eq(users.email, email));
-    if (existing) {
-      if (existing.isSuperAdmin) return { ok: false, error: c.already };
-      if (existing.disabledAt) return { ok: false, error: c.disabledUser };
-      await db.update(users).set({ isSuperAdmin: true, staffRole: role }).where(eq(users.id, existing.id));
-      await audit({ tenantId: null, userId: s.user.id, action: 'admin.staff_added', entityType: 'user', entityId: existing.id, summary: `إضافة ${existing.email} إلى فريق المنصة (${c.roles[role]})` });
-      refresh();
-      return { ok: true, message: f(c.added, { name: existing.name }), data: { link: null, emailed: false, name: existing.name } };
-    }
+    const [existing] = await db.select({ isSuperAdmin: users.isSuperAdmin, disabledAt: users.disabledAt }).from(users).where(eq(users.email, email));
+    if (existing?.isSuperAdmin) return { ok: false, error: c.already };
+    if (existing?.disabledAt) return { ok: false, error: c.disabledUser };
 
-    const name = str(form, 'name').slice(0, 120);
-    if (name.length < 2) return { ok: false, error: `${c.name}: ${t.common.required}` };
-    const [user] = await db
-      .insert(users)
-      .values({ email, name, passwordHash: await hashPassword(randomToken(32)), isSuperAdmin: true, staffRole: role })
-      .returning({ id: users.id });
+    // One live invitation per address.
+    await db
+      .update(staffInvites)
+      .set({ revokedAt: new Date() })
+      .where(and(eq(staffInvites.email, email), isNull(staffInvites.acceptedAt), isNull(staffInvites.revokedAt)));
     const token = randomToken(32);
-    await db.insert(passwordResets).values({ userId: user.id, tokenHash: sha256(token), expiresAt: new Date(Date.now() + INVITE_DAYS * 86_400_000) });
-    const link = `${env.appUrl}/reset-password/${token}`;
+    await db.insert(staffInvites).values({ email, role, tokenHash: sha256(token), invitedBy: s.user.id, expiresAt: new Date(Date.now() + INVITE_DAYS * 86_400_000) });
+    const link = `${env.appUrl}/staff-invite/${token}`;
+
     let emailed = false;
     if (await emailEnabled(null)) {
       emailed = await sendEmail(null, {
@@ -64,17 +64,33 @@ export async function addStaff(_prev: ActionResult<Invite> | null, form: FormDat
         subject: 'متابعة · دعوة للانضمام إلى فريق إدارة المنصة',
         html: emailLayout(
           'دعوة لفريق المنصة',
-          `<p>مرحباً ${escapeHtml(name)}،</p><p>أضافك ${escapeHtml(s.user.name)} إلى فريق إدارة منصة متابعة بدور <b>${escapeHtml(c.roles[role])}</b>.</p><p>عيّن كلمة مرورك من الرابط التالي (صالح ${INVITE_DAYS} أيام):</p><p><a href="${link}" style="color:#007aff">${link}</a></p>`,
+          `<p>دعاك ${escapeHtml(s.user.name)} للانضمام إلى فريق إدارة منصة متابعة بدور <b>${escapeHtml(c.roles[role])}</b>.</p><p>افتح الرابط وعيّن كلمة مرور جديدة لتفعيل الدور (صالح ${INVITE_DAYS} أيام ولمرة واحدة):</p><p><a href="${link}" style="color:#007aff">${link}</a></p>`,
           'منصة متابعة',
         ),
-        text: `أضافك ${s.user.name} إلى فريق إدارة منصة متابعة. عيّن كلمة مرورك: ${link}`,
+        text: `دعاك ${s.user.name} للانضمام إلى فريق إدارة منصة متابعة. فعّل الدور من الرابط: ${link}`,
       })
         .then(() => true)
         .catch(() => false);
     }
-    await audit({ tenantId: null, userId: s.user.id, action: 'admin.staff_invited', entityType: 'user', entityId: user.id, summary: `دعوة ${email} إلى فريق المنصة (${c.roles[role]})` });
+    await audit({ tenantId: null, userId: s.user.id, action: 'admin.staff_invited', entityType: 'staff_invite', summary: `دعوة ${email} إلى فريق المنصة (${c.roles[role]})` });
     refresh();
-    return { ok: true, data: { link, emailed, name } };
+    return { ok: true, data: { link, emailed, email } };
+  });
+}
+
+export async function revokeStaffInvite(id: string): Promise<ActionResult> {
+  return runAction(async () => {
+    const s = await requireStaff('team:manage');
+    const { t } = await getI18n();
+    const [row] = await db
+      .update(staffInvites)
+      .set({ revokedAt: new Date() })
+      .where(and(eq(staffInvites.id, id), isNull(staffInvites.acceptedAt), isNull(staffInvites.revokedAt)))
+      .returning({ email: staffInvites.email });
+    if (!row) return { ok: false, error: t.common.error };
+    await audit({ tenantId: null, userId: s.user.id, action: 'admin.staff_invite_revoked', entityType: 'staff_invite', entityId: id, summary: `إلغاء دعوة ${row.email} لفريق المنصة` });
+    refresh();
+    return { ok: true, message: t.console.team.inviteRevoked };
   });
 }
 
@@ -84,10 +100,13 @@ export async function changeStaffRole(userId: string, role: string): Promise<Act
     const { t } = await getI18n();
     const c = t.console.team;
     if (!isStaffRole(role)) return { ok: false, error: t.common.error };
+    if (userId === s.user.id) return { ok: false, error: t.console.users.cannotSelf };
     const [user] = await db.select().from(users).where(eq(users.id, userId));
     if (!user?.isSuperAdmin) return { ok: false, error: t.common.error };
     if (role !== 'owner' && (await isLastOwner(userId))) return { ok: false, error: t.console.users.lastAdmin };
     await db.update(users).set({ staffRole: role }).where(eq(users.id, userId));
+    // A narrower role must not survive in sessions opened under the old one (e.g. support access to a company).
+    await revokeAllSessions(userId);
     await audit({ tenantId: null, userId: s.user.id, action: 'admin.staff_role', entityType: 'user', entityId: userId, summary: `تغيير دور ${user.email} في فريق المنصة إلى ${c.roles[role]}` });
     refresh();
     return { ok: true, message: c.roleChanged };
@@ -103,6 +122,7 @@ export async function removeStaff(userId: string): Promise<ActionResult> {
     if (!user?.isSuperAdmin) return { ok: false, error: t.common.error };
     if (await isLastOwner(userId)) return { ok: false, error: t.console.users.lastAdmin };
     await db.update(users).set({ isSuperAdmin: false, staffRole: null }).where(eq(users.id, userId));
+    await revokeAllSessions(userId);
     await audit({ tenantId: null, userId: s.user.id, action: 'admin.staff_removed', entityType: 'user', entityId: userId, summary: `إزالة ${user.email} من فريق المنصة` });
     refresh();
     return { ok: true, message: t.console.team.removed };
