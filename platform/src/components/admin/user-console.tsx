@@ -3,7 +3,7 @@
 import { Ban, Copy, KeyRound, Link2, LogOut, MonitorSmartphone, ShieldCheck, ShieldOff, Trash2, UserCheck } from 'lucide-react';
 import Link from 'next/link';
 import { useState, useTransition } from 'react';
-import { createResetLink, deleteUser, revokeSession, revokeUserSessions, setSuperAdmin, setUserDisabled, setUserPassword, updateUserProfile } from '@/app/admin/users/actions';
+import { createResetLink, deleteUser, revokePlatformRole, revokeSession, revokeUserSessions, setUserDisabled, setUserPassword, updateUserProfile } from '@/app/admin/users/actions';
 import { Avatar } from '@/components/app/topbar';
 import { Card, Empty, Notice } from '@/components/ui/card';
 import { Field, SubmitButton, useFeedbackAction } from '@/components/ui/form';
@@ -182,10 +182,17 @@ export function UserConsole({ vm, can }: { vm: UserDetailVM; can: Record<StaffPe
               {vm.isSelf ? null : (
                 <>
                   {can['team:manage'] ? (
-                    <button type="button" className="ui-btn ui-btn--outline ui-btn--block" disabled={pending} onClick={() => window.confirm(`${vm.isSuperAdmin ? c.removeAdmin : c.makeAdmin}?`) && run(() => setSuperAdmin(vm.id, !vm.isSuperAdmin))}>
-                      {vm.isSuperAdmin ? <ShieldOff size={16} /> : <ShieldCheck size={16} />}
-                      {vm.isSuperAdmin ? c.removeAdmin : c.makeAdmin}
-                    </button>
+                    vm.isSuperAdmin ? (
+                      <button type="button" className="ui-btn ui-btn--outline ui-btn--block" disabled={pending} onClick={() => window.confirm(`${c.removeAdmin}?`) && run(() => revokePlatformRole(vm.id))}>
+                        <ShieldOff size={16} />
+                        {c.removeAdmin}
+                      </button>
+                    ) : (
+                      <Link href={`/admin/team?invite=${encodeURIComponent(vm.email)}`} className="ui-btn ui-btn--outline ui-btn--block">
+                        <ShieldCheck size={16} />
+                        {t.console.team.addFromUser}
+                      </Link>
+                    )
                   ) : null}
                   {can['users:manage'] ? (
                   <>

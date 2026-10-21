@@ -43,6 +43,13 @@
       "when": 1792535159197,
       "tag": "0005_contact_messages",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1792565427915,
+      "tag": "0006_security_hardening",
+      "breakpoints": true
     }
   ]
 }

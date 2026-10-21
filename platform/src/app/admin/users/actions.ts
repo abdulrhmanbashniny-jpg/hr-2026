@@ -89,22 +89,31 @@ export async function revokeSession(sessionId: string): Promise<ActionResult> {
     const s = await requireStaff('users:support');
     const { t } = await getI18n();
     if (sessionId === s.sessionId) return { ok: false, error: t.console.users.cannotSelf };
-    const [row] = await db.update(sessions).set({ revokedAt: new Date() }).where(eq(sessions.id, sessionId)).returning({ userId: sessions.userId });
-    if (row) refresh(row.userId);
+    const [target] = await db.select({ userId: sessions.userId }).from(sessions).where(eq(sessions.id, sessionId));
+    if (!target) return { ok: false, error: t.common.error };
+    // Same protection as ending all sessions: a team member's sessions are only for the team managers.
+    await guardTarget(s, target.userId);
+    await db.update(sessions).set({ revokedAt: new Date() }).where(and(eq(sessions.id, sessionId), eq(sessions.userId, target.userId)));
+    refresh(target.userId);
     return { ok: true, message: t.console.users.sessionsRevoked };
   });
 }
 
-export async function setSuperAdmin(userId: string, grant: boolean): Promise<ActionResult> {
+/**
+ * Takes a user off the platform team. Joining the team only happens through an invitation the
+ * recipient accepts (see team/actions.ts), never by flipping the flag on an existing account.
+ */
+export async function revokePlatformRole(userId: string): Promise<ActionResult> {
   return runAction(async () => {
     const s = await requireStaff('team:manage');
     const { t } = await getI18n();
-    if (!grant && userId === s.user.id) return { ok: false, error: t.console.users.cannotSelf };
-    if (!grant && (await isLastOwner(userId))) return { ok: false, error: t.console.users.lastAdmin };
-    await db.update(users).set({ isSuperAdmin: grant, staffRole: grant ? 'admin' : null }).where(eq(users.id, userId));
-    await audit({ tenantId: null, userId: s.user.id, action: grant ? 'admin.admin_granted' : 'admin.admin_revoked', entityType: 'user', entityId: userId, summary: grant ? 'منح صلاحية مدير المنصة' : 'سحب صلاحية مدير المنصة' });
+    if (userId === s.user.id) return { ok: false, error: t.console.users.cannotSelf };
+    if (await isLastOwner(userId)) return { ok: false, error: t.console.users.lastAdmin };
+    await db.update(users).set({ isSuperAdmin: false, staffRole: null }).where(eq(users.id, userId));
+    await revokeAll(userId);
+    await audit({ tenantId: null, userId: s.user.id, action: 'admin.admin_revoked', entityType: 'user', entityId: userId, summary: 'سحب صلاحية فريق المنصة' });
     refresh(userId);
-    return { ok: true, message: grant ? t.console.users.adminGranted : t.console.users.adminRevoked };
+    return { ok: true, message: t.console.users.adminRevoked };
   });
 }
 

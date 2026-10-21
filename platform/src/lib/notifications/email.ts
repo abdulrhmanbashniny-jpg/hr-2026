@@ -1,6 +1,7 @@
 import nodemailer from 'nodemailer';
 import { decryptSecret } from '@/lib/crypto';
 import { env } from '@/lib/env';
+import { checkSmtpDestination } from '@/lib/net/outbound';
 import { getPlatformSmtp, type PlatformSmtp } from '@/lib/platform-settings';
 import type { TenantSettings } from '@/lib/settings';
 
@@ -10,15 +11,27 @@ export interface MailAttachment {
   contentType: string;
 }
 
-function smtpTransport(s: { host: string; port: number; secure: boolean; user: string; passwordEnc: string | null; fromName: string; fromEmail: string }) {
+type SmtpConfig = { host: string; port: number; secure: boolean; user: string; passwordEnc: string | null; fromName: string; fromEmail: string };
+
+const TIMEOUTS = { connectionTimeout: 10_000, greetingTimeout: 10_000, socketTimeout: 20_000 };
+
+/**
+ * A mail server typed in by a customer or an admin is reached only at a checked public address
+ * and an SMTP port; the name is kept for TLS so the certificate is still verified against it.
+ */
+async function smtpTransport(s: SmtpConfig) {
+  const address = await checkSmtpDestination(s.host, s.port);
   return {
     transport: nodemailer.createTransport({
-      host: s.host,
+      host: address,
       port: s.port,
       secure: s.secure,
+      name: 'mutabaa',
+      tls: { servername: s.host.trim() },
       auth: s.user ? { user: s.user, pass: decryptSecret(s.passwordEnc) } : undefined,
+      ...TIMEOUTS,
     }),
-    from: s.fromName ? `"${s.fromName.replace(/"/g, '')}" <${s.fromEmail || s.user}>` : s.fromEmail || s.user,
+    from: s.fromName ? `"${s.fromName.replace(/["\r\n]/g, '')}" <${s.fromEmail || s.user}>` : s.fromEmail || s.user,
   };
 }
 
@@ -33,12 +46,14 @@ async function platformTransport() {
   const saved = await getPlatformSmtp();
   if (saved?.enabled && saved.host) return smtpTransport(saved);
   if (!env.smtp.host) return null;
+  // Set by whoever deploys the platform, so it is trusted as is.
   return {
     transport: nodemailer.createTransport({
       host: env.smtp.host,
       port: env.smtp.port,
       secure: env.smtp.secure,
       auth: env.smtp.user ? { user: env.smtp.user, pass: env.smtp.password } : undefined,
+      ...TIMEOUTS,
     }),
     from: env.smtp.from || env.smtp.user,
   };
@@ -51,8 +66,10 @@ export async function mailerFor(settings: TenantSettings | null) {
   return platformTransport();
 }
 
+/** Whether any mail server is configured; makes no network calls. */
 export async function emailEnabled(settings: TenantSettings | null): Promise<boolean> {
-  return !!(await mailerFor(settings));
+  if (settings?.smtp.enabled && settings.smtp.host) return true;
+  return (await platformMailSource()) !== null;
 }
 
 export async function sendEmail(settings: TenantSettings | null, msg: { to: string; subject: string; html: string; text: string; attachments?: MailAttachment[] }) {
@@ -69,7 +86,7 @@ export async function verifySmtp(settings: TenantSettings): Promise<void> {
 
 /** Checks and uses a platform mail server before it is saved. */
 export async function testPlatformSmtp(s: PlatformSmtp, to: string, msg: { subject: string; html: string; text: string }) {
-  const mailer = smtpTransport(s);
+  const mailer = await smtpTransport(s);
   await mailer.transport.verify();
   await mailer.transport.sendMail({ from: mailer.from, to, ...msg });
 }

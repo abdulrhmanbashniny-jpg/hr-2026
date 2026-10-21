@@ -1,6 +1,7 @@
 import { decryptSecret } from '@/lib/crypto';
 import type { TenantSettings } from '@/lib/settings';
 import { normalizeSaudiPhone, waDeepLink } from './wa-link';
+import { postToWebhook } from '@/lib/net/outbound';
 
 export { normalizeSaudiPhone, waDeepLink };
 
@@ -47,12 +48,8 @@ export async function sendWhatsApp(settings: TenantSettings, to: string, message
   }
   if (w.mode === 'webhook') {
     const auth = decryptSecret(w.webhookAuthHeaderEnc);
-    const res = await fetch(w.webhookUrl, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', ...(auth ? { Authorization: auth } : {}) },
-      body: JSON.stringify({ to: phone, message, document_url: documentUrl ?? null }),
-    });
-    if (!res.ok) throw new Error(`WhatsApp webhook ${res.status}`);
+    const res = await postToWebhook(w.webhookUrl, { to: phone, message, document_url: documentUrl ?? null }, auth ? { Authorization: auth } : {});
+    if (res.status < 200 || res.status >= 300) throw new Error(`WhatsApp webhook ${res.status}`);
     return;
   }
   throw new Error('WhatsApp automatic sending is not configured (deep-link mode)');

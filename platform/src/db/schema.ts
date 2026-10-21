@@ -95,6 +95,33 @@ export const invitations = pgTable('invitations', {
   createdAt: createdAt(),
 });
 
+/**
+ * Invitation to the platform team. The role takes effect only when the recipient opens the link
+ * (sent to the address), sets a new password and thereby proves they own the e-mail.
+ */
+export const staffInvites = pgTable('staff_invites', {
+  id: id(),
+  email: text('email').notNull(),
+  role: text('role').notNull(),
+  tokenHash: text('token_hash').notNull().unique(),
+  invitedBy: uuid('invited_by').references(() => users.id, { onDelete: 'set null' }),
+  expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
+  acceptedAt: timestamp('accepted_at', { withTimezone: true }),
+  revokedAt: timestamp('revoked_at', { withTimezone: true }),
+  createdAt: createdAt(),
+});
+
+/** Hits for rate limits shared by every server instance (sign-in, reset, invitations). Keys are hashed. */
+export const rateLimitHits = pgTable(
+  'rate_limit_hits',
+  {
+    id: id(),
+    key: text('key').notNull(),
+    createdAt: createdAt(),
+  },
+  (t) => [index('rate_limit_hits_key_created').on(t.key, t.createdAt)],
+);
+
 export const sessions = pgTable('sessions', {
   id: id(),
   userId: uuid('user_id')
@@ -471,6 +498,8 @@ export const contacts = pgTable('contacts', {
   telegramChatId: text('telegram_chat_id'),
   telegramUsername: text('telegram_username'),
   telegramLinkCode: text('telegram_link_code').unique(),
+  /** Link codes are single-use and expire, so a leaked or forgotten link stops working. */
+  telegramLinkExpiresAt: timestamp('telegram_link_expires_at', { withTimezone: true }),
   userId: uuid('user_id').references(() => users.id, { onDelete: 'set null' }),
   modules: jsonb('modules').$type<string[]>().notNull().default([]),
   canRequestDocuments: boolean('can_request_documents').notNull().default(false),

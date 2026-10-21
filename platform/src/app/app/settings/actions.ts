@@ -1,6 +1,6 @@
 'use server';
 
-import { and, count, eq, isNull } from 'drizzle-orm';
+import { and, eq, isNull } from 'drizzle-orm';
 import { revalidatePath } from 'next/cache';
 import { db } from '@/db';
 import { contacts, invitations, memberships, tenants, users } from '@/db/schema';
@@ -12,10 +12,11 @@ import { ROLES, type Role } from '@/lib/auth/rbac';
 import { encryptSecret, randomToken, sha256 } from '@/lib/crypto';
 import { env } from '@/lib/env';
 import { f, getI18n } from '@/lib/i18n';
-import { emailEnabled, emailLayout, sendEmail, verifySmtp } from '@/lib/notifications/email';
+import { emailEnabled, emailLayout, escapeHtml as escapeMailHtml, sendEmail, verifySmtp } from '@/lib/notifications/email';
 import { botFor, deleteWebhook, escapeHtml, getMe, sendMessage, setCommands, setWebhook, telegramDeepLink, tenantBot } from '@/lib/notifications/telegram';
 import { syncTenantAlerts } from '@/lib/rules/sync';
 import { tenantSettingsSchema, type TenantSettings } from '@/lib/settings';
+import { checkSmtpDestination, checkWebhookUrl } from '@/lib/net/outbound';
 
 async function saveSettings(tenantId: string, next: TenantSettings) {
   const parsed = tenantSettingsSchema.parse(next);
@@ -104,6 +105,15 @@ export async function updateSmtp(_prev: ActionResult | null, form: FormData): Pr
       },
     };
     if (next.smtp.enabled && !next.smtp.host) return { ok: false, error: `${t.settings.smtpHost}: ${t.common.required}` };
+    // A stored address is checked even while the custom server is switched off, so it can never be
+    // saved pointing at the internal network and enabled later.
+    if (next.smtp.host) {
+      try {
+        await checkSmtpDestination(next.smtp.host, next.smtp.port);
+      } catch {
+        return { ok: false, error: t.settings.destinationBlocked };
+      }
+    }
     await saveSettings(s.tenant.id, next);
     await audit({ tenantId: s.tenant.id, userId: s.user.id, action: 'settings.smtp_updated', entityType: 'tenant', entityId: s.tenant.id, summary: `تحديث إعدادات البريد (${next.smtp.enabled ? next.smtp.host : 'بريد المنصة'})` });
     revalidatePath('/app/settings');
@@ -139,6 +149,13 @@ export async function updateWhatsapp(_prev: ActionResult | null, form: FormData)
     const auth = str(form, 'waWebhookAuth');
     const webhookUrl = str(form, 'waWebhookUrl');
     if (webhookUrl && !/^https:\/\//i.test(webhookUrl)) return { ok: false, error: `${t.settings.waWebhookUrl}: https://` };
+    if (webhookUrl) {
+      try {
+        await checkWebhookUrl(webhookUrl);
+      } catch {
+        return { ok: false, error: t.settings.destinationBlocked };
+      }
+    }
     const next: TenantSettings = {
       ...s.settings,
       whatsapp: {
@@ -181,7 +198,7 @@ export async function inviteMember(_prev: ActionResult<{ url: string }> | null, 
       await sendEmail(s.settings, {
         to: email,
         subject: `دعوة للانضمام إلى ${s.tenant.name} على منصة متابعة`,
-        html: emailLayout(s.tenant.name, `<p>دعاك ${s.user.name} للانضمام إلى مساحة عمل <b>${s.tenant.name}</b> بدور «${t.roles[role]}».</p><p><a href="${url}" style="color:#0f5b4b">قبول الدعوة</a> (صالحة 7 أيام)</p>`, 'منصة متابعة'),
+        html: emailLayout(s.tenant.name, `<p>دعاك ${escapeMailHtml(s.user.name)} للانضمام إلى مساحة عمل <b>${escapeMailHtml(s.tenant.name)}</b> بدور «${escapeMailHtml(t.roles[role])}».</p><p><a href="${url}" style="color:#0f5b4b">قبول الدعوة</a> (صالحة 7 أيام)</p>`, 'منصة متابعة'),
         text: `دعوة للانضمام إلى ${s.tenant.name}: ${url}`,
       }).catch((err) => console.error('invite mail failed', err));
     }
@@ -191,9 +208,16 @@ export async function inviteMember(_prev: ActionResult<{ url: string }> | null, 
   });
 }
 
-async function ownerCount(tenantId: string) {
-  const [r] = await db.select({ n: count() }).from(memberships).where(and(eq(memberships.tenantId, tenantId), eq(memberships.role, 'owner')));
-  return r.n;
+/** Runs a membership change while the company's owner rows are locked, so two concurrent changes can never remove the last owner. */
+function withOwnerLock<T>(tenantId: string, fn: (tx: Parameters<Parameters<typeof db.transaction>[0]>[0], owners: number) => Promise<T>): Promise<T> {
+  return db.transaction(async (tx) => {
+    const owners = await tx
+      .select({ id: memberships.id })
+      .from(memberships)
+      .where(and(eq(memberships.tenantId, tenantId), eq(memberships.role, 'owner')))
+      .for('update');
+    return fn(tx, owners.length);
+  });
 }
 
 export async function changeRole(membershipId: string, role: Role): Promise<ActionResult> {
@@ -204,8 +228,12 @@ export async function changeRole(membershipId: string, role: Role): Promise<Acti
     const [m] = await db.select().from(memberships).where(and(eq(memberships.id, membershipId), eq(memberships.tenantId, s.tenant.id)));
     if (!m) return { ok: false, error: t.common.error };
     if ((role === 'owner' || m.role === 'owner') && s.role !== 'owner') throw new ForbiddenError();
-    if (m.role === 'owner' && role !== 'owner' && (await ownerCount(s.tenant.id)) <= 1) return { ok: false, error: t.settings.lastOwner };
-    await db.update(memberships).set({ role }).where(eq(memberships.id, m.id));
+    const done = await withOwnerLock(s.tenant.id, async (tx, owners) => {
+      if (m.role === 'owner' && role !== 'owner' && owners <= 1) return false;
+      await tx.update(memberships).set({ role }).where(eq(memberships.id, m.id));
+      return true;
+    });
+    if (!done) return { ok: false, error: t.settings.lastOwner };
     await audit({ tenantId: s.tenant.id, userId: s.user.id, action: 'member.role_changed', entityType: 'membership', entityId: m.id, summary: `تغيير الدور ${m.role} → ${role}` });
     revalidatePath('/app/settings');
     return { ok: true, message: t.settings.saved };
@@ -218,8 +246,13 @@ export async function removeMember(membershipId: string): Promise<ActionResult> 
     const { t } = await getI18n();
     const [m] = await db.select().from(memberships).where(and(eq(memberships.id, membershipId), eq(memberships.tenantId, s.tenant.id)));
     if (!m) return { ok: false, error: t.common.error };
-    if (m.role === 'owner' && (s.role !== 'owner' || (await ownerCount(s.tenant.id)) <= 1)) return { ok: false, error: t.settings.lastOwner };
-    await db.delete(memberships).where(eq(memberships.id, m.id));
+    if (m.role === 'owner' && s.role !== 'owner') return { ok: false, error: t.settings.lastOwner };
+    const done = await withOwnerLock(s.tenant.id, async (tx, owners) => {
+      if (m.role === 'owner' && owners <= 1) return false;
+      await tx.delete(memberships).where(eq(memberships.id, m.id));
+      return true;
+    });
+    if (!done) return { ok: false, error: t.settings.lastOwner };
     await audit({ tenantId: s.tenant.id, userId: s.user.id, action: 'member.removed', entityType: 'membership', entityId: m.id, summary: 'إزالة عضو من الفريق' });
     revalidatePath('/app/settings');
     return { ok: true, message: t.settings.saved };
@@ -256,17 +289,24 @@ export async function saveContact(id: string | null, _prev: ActionResult | null,
       modules: form.getAll('modules').map(String).filter((m) => MODULES.includes(m)),
       canRequestDocuments: bool(form, 'canRequestDocuments'),
       receiveWeeklyReport: bool(form, 'receiveWeeklyReport'),
-      ...(form.has('telegramChatId') ? { telegramChatId: /^-?\d{4,20}$/.test(str(form, 'telegramChatId')) ? str(form, 'telegramChatId') : null } : {}),
+      // A typed chat ID skips the /start consent step, so it is accepted only with the company's own bot.
+      ...(form.has('telegramChatId') && tenantBot(s.settings, s.tenant.id) ? { telegramChatId: /^-?\d{4,20}$/.test(str(form, 'telegramChatId')) ? str(form, 'telegramChatId') : null } : {}),
     };
     if (id) {
       await db.update(contacts).set(values).where(and(eq(contacts.id, id), eq(contacts.tenantId, s.tenant.id)));
     } else {
-      await db.insert(contacts).values({ ...values, tenantId: s.tenant.id, telegramLinkCode: randomToken(12) });
+      await db.insert(contacts).values({ ...values, tenantId: s.tenant.id, ...freshLinkCode() });
     }
     await audit({ tenantId: s.tenant.id, userId: s.user.id, action: id ? 'contact.updated' : 'contact.created', entityType: 'contact', entityId: id ?? undefined, summary: `${id ? 'تحديث' : 'إضافة'} مسؤول متابعة: ${name}` });
     revalidatePath('/app/settings');
     return { ok: true, message: t.settings.saved };
   });
+}
+
+const LINK_CODE_DAYS = 7;
+
+function freshLinkCode() {
+  return { telegramLinkCode: randomToken(12), telegramLinkExpiresAt: new Date(Date.now() + LINK_CODE_DAYS * 86_400_000) };
 }
 
 export async function deleteContact(id: string): Promise<ActionResult> {
@@ -284,8 +324,9 @@ export async function regenerateTelegramLink(id: string): Promise<ActionResult<{
   return runAction(async () => {
     const s = await requirePermission('contacts:manage', { allowReadOnly: true });
     const { t } = await getI18n();
-    const code = randomToken(12);
-    await db.update(contacts).set({ telegramLinkCode: code }).where(and(eq(contacts.id, id), eq(contacts.tenantId, s.tenant.id)));
+    const fresh = freshLinkCode();
+    const code = fresh.telegramLinkCode;
+    await db.update(contacts).set(fresh).where(and(eq(contacts.id, id), eq(contacts.tenantId, s.tenant.id)));
     revalidatePath('/app/settings');
     return { ok: true, message: t.settings.saved, data: { url: telegramDeepLink(botFor(s.settings, s.tenant.id), code) } };
   });
@@ -297,7 +338,7 @@ export async function unlinkTelegram(id: string): Promise<ActionResult> {
     const { t } = await getI18n();
     await db
       .update(contacts)
-      .set({ telegramChatId: null, telegramUsername: null, telegramLinkCode: randomToken(12) })
+      .set({ telegramChatId: null, telegramUsername: null, ...freshLinkCode() })
       .where(and(eq(contacts.id, id), eq(contacts.tenantId, s.tenant.id)));
     await audit({ tenantId: s.tenant.id, userId: s.user.id, action: 'contact.telegram_unlinked', entityType: 'contact', entityId: id, summary: 'فك ربط التليجرام' });
     revalidatePath('/app/settings');
@@ -320,6 +361,8 @@ export async function saveTelegramBot(_prev: ActionResult | null, form: FormData
     const current = s.settings.telegram;
     const group = str(form, 'groupChatId');
     if (group && !/^-?\d{4,20}$/.test(group)) return { ok: false, error: `${t.settings.tgGroup}: ${t.common.error}` };
+    // Typed chat IDs bypass the /start consent step, so they are only used with the company's own bot.
+    if (group && !token && !tenantBot(s.settings, s.tenant.id)) return { ok: false, error: t.settings.tgOwnBotRequired };
     const next: TenantSettings['telegram'] = {
       ...current,
       groupChatId: group,
@@ -373,7 +416,7 @@ export async function testTelegramBot(): Promise<ActionResult> {
     const { t } = await getI18n();
     const bot = botFor(s.settings, s.tenant.id);
     if (!bot) return { ok: false, error: t.settings.botNotConfigured };
-    const targets = s.settings.telegram.groupChatId
+    const targets = s.settings.telegram.groupChatId && tenantBot(s.settings, s.tenant.id)
       ? [s.settings.telegram.groupChatId]
       : (await db.select({ chat: contacts.telegramChatId }).from(contacts).where(and(eq(contacts.tenantId, s.tenant.id), eq(contacts.isActive, true)))).map((c) => c.chat).filter((c): c is string => !!c);
     if (!targets.length) return { ok: false, error: t.settings.tgNoTarget };

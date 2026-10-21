@@ -1,6 +1,6 @@
 'use server';
 
-import { and, eq, sql } from 'drizzle-orm';
+import { and, eq, inArray, sql } from 'drizzle-orm';
 import { redirect } from 'next/navigation';
 import { revalidatePath } from 'next/cache';
 import { db } from '@/db';
@@ -20,7 +20,17 @@ async function loadPromo(code: string, tenantId: string) {
   const [red] = promo
     ? await db.select().from(promoRedemptions).where(and(eq(promoRedemptions.promoCodeId, promo.id), eq(promoRedemptions.tenantId, tenantId)))
     : [];
-  return { promo: promo ?? undefined, alreadyRedeemed: !!red };
+  return { promo: promo ?? undefined, alreadyRedeemed: !!red || (promo ? await promoInUse(promo.id, tenantId) : false) };
+}
+
+/** A code counts as used once a payment with it is pending or paid, so one code cannot fund several checkouts. */
+async function promoInUse(promoCodeId: string, tenantId: string): Promise<boolean> {
+  const [row] = await db
+    .select({ id: payments.id })
+    .from(payments)
+    .where(and(eq(payments.promoCodeId, promoCodeId), eq(payments.tenantId, tenantId), inArray(payments.status, ['pending', 'paid'])))
+    .limit(1);
+  return !!row;
 }
 
 export interface QuoteData {
@@ -95,7 +105,7 @@ export async function checkout(_prev: ActionResult | null, form: FormData): Prom
       promo = loaded.promo!;
     } else if (sub?.pendingPromoCodeId) {
       const [p] = await db.select().from(promoCodes).where(eq(promoCodes.id, sub.pendingPromoCodeId));
-      if (p && !promoProblem(p, { planCode: plan.code }) && p.kind !== 'trial_extension') promo = p;
+      if (p && !promoProblem(p, { planCode: plan.code }) && p.kind !== 'trial_extension' && !(await promoInUse(p.id, s.tenant.id))) promo = p;
     }
     const q = priceQuote(plan, cycle, promo, env.vatPercent);
     const useGateway = !manual && moyasarEnabled();

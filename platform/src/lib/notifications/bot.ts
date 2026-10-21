@@ -1,4 +1,4 @@
-import { and, count, desc, eq, inArray, lte, ne } from 'drizzle-orm';
+import { and, count, desc, eq, gt, inArray, lte, ne } from 'drizzle-orm';
 import { db } from '@/db';
 import { complianceAlerts, contacts, documents, residents, tenants, vehicles } from '@/db/schema';
 import { audit } from '@/lib/audit';
@@ -168,14 +168,14 @@ export async function handleTelegramUpdate(update: TgUpdate, scope: BotScope): P
     const [c] = await db
       .select()
       .from(contacts)
-      .where(and(eq(contacts.telegramLinkCode, code), scope.tenantId ? eq(contacts.tenantId, scope.tenantId) : undefined));
+      .where(and(eq(contacts.telegramLinkCode, code), gt(contacts.telegramLinkExpiresAt, new Date()), scope.tenantId ? eq(contacts.tenantId, scope.tenantId) : undefined));
     if (!c) {
       await sendMessage(scope.bot, chatId, 'رمز الربط غير صالح أو مستخدم. أنشئ رابطاً جديداً من المنصة.');
       return;
     }
     await db
       .update(contacts)
-      .set({ telegramChatId: chatId, telegramUsername: msg.from?.username ?? null, telegramLinkCode: null })
+      .set({ telegramChatId: chatId, telegramUsername: msg.from?.username ?? null, telegramLinkCode: null, telegramLinkExpiresAt: null })
       .where(eq(contacts.id, c.id));
     const [t] = await db.select({ name: tenants.name, settings: tenants.settings }).from(tenants).where(eq(tenants.id, c.tenantId));
     await audit({ tenantId: c.tenantId, userId: null, action: 'contact.telegram_linked', entityType: 'contact', entityId: c.id, summary: `ربط ${c.name} حسابه في التليجرام` }, null);
@@ -271,7 +271,7 @@ async function handleCallback(cb: NonNullable<TgUpdate['callback_query']>, scope
   const byTenant = new Map(linked.map((l) => [l.contact.tenantId, l]));
 
   if (kind === 'g') {
-    const [doc] = await db.select().from(documents).where(eq(documents.id, id));
+    const [doc] = await db.select().from(documents).where(and(eq(documents.id, id), ne(documents.status, 'archived')));
     const l = doc ? byTenant.get(doc.tenantId) : undefined;
     if (!doc || !l?.contact.canRequestDocuments || !l.settings.telegram.allowDocuments) {
       await answerCallback(scope.bot, cb.id, 'غير مصرح بطلب هذا المستند');
@@ -285,7 +285,9 @@ async function handleCallback(cb: NonNullable<TgUpdate['callback_query']>, scope
   if (kind === 'r' || kind === 's') {
     const [alert] = await db.select().from(complianceAlerts).where(eq(complianceAlerts.id, id));
     const l = alert ? byTenant.get(alert.tenantId) : undefined;
-    if (!alert || !l) {
+    // A contact may act only on alerts of the modules they follow (the ones they are sent).
+    const covers = !!l && (l.contact.modules.length === 0 || l.contact.modules.includes(alert!.module));
+    if (!alert || !l || !covers) {
       await answerCallback(scope.bot, cb.id, 'التنبيه غير موجود');
       return;
     }

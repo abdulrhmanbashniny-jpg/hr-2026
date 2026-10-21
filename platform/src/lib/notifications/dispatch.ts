@@ -20,7 +20,7 @@ import { subscriptionState, PAST_DUE_GRACE_DAYS } from '@/lib/billing/state';
 import { syncTenantAlerts } from '@/lib/rules/sync';
 import { resolveSettings, type TenantSettings } from '@/lib/settings';
 import { emailEnabled, emailLayout, escapeHtml as escapeEmail, sendEmail } from './email';
-import { botFor, escapeHtml, sendMessage } from './telegram';
+import { botFor, escapeHtml, sendMessage, tenantBot } from './telegram';
 import { sendWhatsApp, whatsappAutomatic } from './whatsapp';
 
 type Alert = typeof complianceAlerts.$inferSelect;
@@ -257,9 +257,11 @@ export async function dispatchTenant(tenantId: string, today = todayRiyadh(), op
     }
   }
 
-  // Company group chat: one digest per run of everything newly due.
+  // Company group chat: one digest per run of everything newly due. Only through the company's own
+  // bot: a group ID typed in settings is not proof of consent, so the shared bot never posts to it.
   const group = settings.telegram.groupChatId;
-  if (tgBot && group) {
+  const groupBot = tenantBot(settings, tenantId);
+  if (groupBot && group) {
     const fresh: { alert: Alert; claim: string }[] = [];
     for (const it of due) {
       if (it.alert.severity === 'info') continue;
@@ -269,7 +271,7 @@ export async function dispatchTenant(tenantId: string, today = todayRiyadh(), op
     if (fresh.length) {
       const lines = fresh.slice(0, 40).map((f) => `${SEVERITY_ICON[f.alert.severity]} ${escapeHtml(f.alert.titleAr)} — ${escapeHtml(f.alert.entityLabel)}`);
       try {
-        await sendMessage(tgBot, group, `<b>تنبيهات ${escapeHtml(tenant.name)} المستحقة اليوم (${fresh.length})</b>\n${lines.join('\n')}${fresh.length > 40 ? '\n…' : ''}`, [[{ text: 'عرض كل التنبيهات', url: `${env.appUrl}/app/alerts` }]]);
+        await sendMessage(groupBot, group, `<b>تنبيهات ${escapeHtml(tenant.name)} المستحقة اليوم (${fresh.length})</b>\n${lines.join('\n')}${fresh.length > 40 ? '\n…' : ''}`, [[{ text: 'عرض كل التنبيهات', url: `${env.appUrl}/app/alerts` }]]);
         stats.telegram += fresh.length;
       } catch (err) {
         stats.failed += fresh.length;

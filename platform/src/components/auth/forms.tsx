@@ -6,6 +6,7 @@ import { acceptInvitation, register, requestPasswordReset, resetPassword, signIn
 import { Field, SubmitButton } from '@/components/ui/form';
 import { Notice } from '@/components/ui/card';
 import { useI18n } from '@/lib/i18n/client';
+import { f } from '@/lib/i18n/format';
 
 function Result({ state }: { state: { ok: boolean; error?: string; message?: string } | null }) {
   if (!state) return null;
@@ -115,9 +116,34 @@ export function ResetForm({ token }: { token: string }) {
   );
 }
 
-export function InviteForm({ token, existing, email }: { token: string; existing: boolean; email: string }) {
+export function InviteForm({ token, existing, email, signedIn }: { token: string; existing: boolean; email: string; signedIn: { email: string; matches: boolean } | null }) {
   const { t } = useI18n();
   const [state, action] = useActionState(acceptInvitation, null);
+  if (existing) {
+    // Registered address: accept only while signed in as that account; the password is never asked here.
+    if (signedIn?.matches) {
+      return (
+        <form action={action} className="flex flex-col gap-3.5">
+          <input type="hidden" name="token" value={token} />
+          <Result state={state} />
+          <Field label={t.auth.email}>
+            <input value={email} readOnly className="ui-input ui-input--ltr" />
+          </Field>
+          <SubmitButton className="ui-btn--block">{t.auth.inviteAccept}</SubmitButton>
+        </form>
+      );
+    }
+    return (
+      <div className="flex flex-col gap-3.5">
+        <Notice tone="blue">{signedIn ? f(t.auth.inviteWrongAccount, { current: signedIn.email, email }) : f(t.auth.inviteSignIn, { email })}</Notice>
+        {signedIn ? null : (
+          <Link href={`/login?next=${encodeURIComponent(`/invite/${token}`)}`} className="ui-btn ui-btn--primary ui-btn--block">
+            {t.auth.inviteSignInButton}
+          </Link>
+        )}
+      </div>
+    );
+  }
   return (
     <form action={action} className="flex flex-col gap-3.5">
       <input type="hidden" name="token" value={token} />
@@ -135,8 +161,8 @@ export function InviteForm({ token, existing, email }: { token: string; existing
           </Field>
         </>
       )}
-      <Field label={t.auth.password} htmlFor="password" hint={existing ? undefined : t.auth.passwordHint}>
-        <input id="password" name="password" type="password" required className="ui-input ui-input--ltr" autoComplete={existing ? 'current-password' : 'new-password'} />
+      <Field label={t.auth.password} htmlFor="password" hint={t.auth.passwordHint}>
+        <input id="password" name="password" type="password" required className="ui-input ui-input--ltr" autoComplete="new-password" />
       </Field>
       <SubmitButton className="ui-btn--block">{t.auth.acceptInvite}</SubmitButton>
     </form>

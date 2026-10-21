@@ -18,6 +18,25 @@ export interface Release {
 
 export const RELEASES: Release[] = [
   {
+    version: '3.5',
+    date: '2026-10-21',
+    kind: 'minor',
+    ar: [
+      'تحديث أمني شامل: إضافة أعضاء فريق المنصة صارت برابط دعوة يضع فيه العضو كلمة مروره بنفسه، وتُلغى الصلاحية والجلسات فور تغيير الدور أو الإزالة.',
+      'حدّ لمحاولات الدخول واستعادة كلمة المرور، ومنع إعادة التوجيه إلى مواقع خارجية بعد الدخول.',
+      'خوادم البريد وروابط واتساب الخاصة بالشركات لا تصل إلى الشبكة الداخلية، وملفات Excel المضغوطة بشكل مريب تُرفض قبل قراءتها.',
+      'سياسة أمان للمحتوى تمنع تشغيل أي سكربت غير موثوق، وروابط ربط تليجرام تنتهي بعد 7 أيام ولا يراها إلا من يدير جهات الاتصال.',
+      'إصلاحات في الدفع والعروض وتغيير المالك تمنع التنفيذ المزدوج، وتحديث مكتبات بها ثغرات معروفة.',
+    ],
+    en: [
+      'Security update: platform team members now join through an invitation link where they set their own password, and access and sessions end as soon as their role changes or they are removed.',
+      'Limits on sign-in and password-reset attempts, and no redirects to outside sites after signing in.',
+      'Company mail servers and WhatsApp webhooks cannot reach the internal network, and suspiciously compressed Excel files are rejected before they are read.',
+      'A content security policy blocks untrusted scripts, and Telegram link codes expire after 7 days and are shown only to people who manage contacts.',
+      'Fixes in payments, promo codes and owner changes that prevent double processing, and updated libraries with known vulnerabilities.',
+    ],
+  },
+  {
     version: '3.4',
     date: '2026-10-21',
     kind: 'minor',
