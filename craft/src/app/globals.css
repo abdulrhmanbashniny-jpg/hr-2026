@@ -34,6 +34,15 @@
   --shadow-md: 0 8px 24px -8px rgb(16 42 67 / 0.18), 0 2px 6px rgb(16 42 67 / 0.06);
   --shadow-lg: 0 24px 60px -20px rgb(16 42 67 / 0.35), 0 8px 20px -10px rgb(16 42 67 / 0.15);
   --shadow-glow: 0 0 0 1px rgb(245 158 11 / 0.35), 0 12px 32px -12px rgb(245 158 11 / 0.55);
+  /* Chart roles (validated categorical slots 1–2 and the blue sequential ramp). */
+  --series-1: #2a78d6;
+  --series-2: #eb6834;
+  --seq-1: #cde2fb;
+  --seq-2: #86b6ef;
+  --seq-3: #3987e5;
+  --seq-4: #1c5cab;
+  --seq-5: #0d366b;
+  --grid: #e8edf2;
   color-scheme: light;
 }
 
@@ -62,6 +71,14 @@
     --info-soft: #14213d;
     --shadow-md: 0 8px 24px -8px rgb(0 0 0 / 0.6);
     --shadow-lg: 0 24px 60px -20px rgb(0 0 0 / 0.8);
+    --series-1: #3987e5;
+    --series-2: #d95926;
+    --seq-1: #104281;
+    --seq-2: #1c5cab;
+    --seq-3: #2a78d6;
+    --seq-4: #6da7ec;
+    --seq-5: #b7d3f6;
+    --grid: #1a3045;
     color-scheme: dark;
   }
 }
@@ -88,6 +105,14 @@
   --warning-soft: #2c2008;
   --info: #93b4ff;
   --info-soft: #14213d;
+  --series-1: #3987e5;
+  --series-2: #d95926;
+  --seq-1: #104281;
+  --seq-2: #1c5cab;
+  --seq-3: #2a78d6;
+  --seq-4: #6da7ec;
+  --seq-5: #b7d3f6;
+  --grid: #1a3045;
   color-scheme: dark;
 }
 

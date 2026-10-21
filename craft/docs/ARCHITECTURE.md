@@ -57,7 +57,7 @@ otp_challenges · uploads · stored_files · rate_limit_hits · fraud_flags · a
 | `verification_documents` | National ID, freelance licence (وثيقة العمل الحر), insurance, reviewed by staff. | |
 | `portfolio_projects` | A job: title, city, area, paint brand, colours used (`jsonb`), field verification, warranty. | |
 | `portfolio_media` | Up to 5 per project. Image or video, role (before · after · gallery), object key, thumbnail key, poster key, LQIP, dimensions, SHA-256, capture time and GPS (optional). | `(project_id, sort_order)`; count enforced in service. |
-| `brands` / `dealers` | Paint brands and the partner dealers (branches) whose invoices earn points. Dealers carry the **VAT number** (15 digits) and the **pinned ZATCA public key** of their e-invoicing unit. | `dealers.vat_number` unique. |
+| `brands` / `dealers` / `dealer_keys` | Paint brands and the partner dealers (branches) whose invoices earn points. Dealers carry the **VAT number** (15 digits). `dealer_keys` is the set of ZATCA e-invoicing public keys seen on each dealer's invoices — every cashier device (EGS unit) has its own key. | `dealers.vat_number` unique; `(dealer_id, public_key)` unique. |
 | `invoices` | A purchase claim. Image key + SHA-256, decoded QR (seller, VAT number, time, total, VAT, invoice hash, signature verdict), AI extraction, declared amount, risk score and reasons, points awarded and the rule snapshot used. | **`fingerprint` unique** (one real invoice can be claimed once platform-wide); `image_sha256` unique. |
 | `wallets` | Cached balance per craftsman, updated in the same transaction as the ledger row. | `CHECK (balance >= 0)`. |
 | `points_ledger` | Append-only journal: invoice, referral bonus, commission L1/L2, welcome bonus, redemption, refund, adjustment. Each row stores `balance_after`. | **`idempotency_key` unique**. |
@@ -107,18 +107,21 @@ Every B2C tax invoice in the Kingdom carries a QR code in ZATCA's Base64 **TLV**
 
 1. The phone camera reads the QR on the receipt (BarcodeDetector, or jsQR as fallback) while the photo is taken.
 2. The server decodes the TLV, checks the VAT number format (15 digits, starts and ends with 3) and the seller against the **partner dealer registry**.
-3. For Phase 2 codes it **verifies the ECDSA (secp256k1) signature over the invoice hash with the embedded public key**, and compares that key with the key **pinned** for that dealer (pinned by staff, or on first approved invoice). A forged QR cannot carry a valid signature under the dealer's key.
-4. The invoice **fingerprint** (`hash(VAT number | invoice hash or timestamp | total)`) is unique platform-wide: a genuine receipt can be claimed once, by one craftsman.
+3. For Phase 2 codes it **verifies the ECDSA (secp256k1) signature over the invoice hash with the embedded public key** (raw and Base64 encodings are both accepted, since POS vendors differ), then checks that key against the dealer's **known device keys**. A key joins the set when staff approve an invoice signed with it; an unknown key sends the invoice to manual review instead of auto-approval.
+4. The invoice **fingerprint** is unique platform-wide: for Phase 2 it is the invoice hash (which covers the whole XML invoice), so a genuine receipt can be claimed once, by one craftsman, and editing the amount in the QR does not produce a new claim. Phase 1 falls back to `VAT number | time | total` and is never auto-approved.
+
+**What the signature does and does not prove.** It proves the invoice *identity* (its hash) was issued by a device holding that key, so invented invoices and replays are stopped. The amount fields in the QR (tags 4–5) are not covered by the signature on their own; amount integrity comes from the AI reading of the printed total, the declared amount, per-dealer amount profiles, and — in M3 — dealer-side confirmation through the partner portal.
 
 ### 3.2 AI extraction as a second witness
-When `ANTHROPIC_API_KEY` is set, Claude reads the photo and returns structured fields (seller, VAT number, invoice number, date, total, VAT, whether it looks like a real tax invoice, signs of editing). The pipeline compares it with the QR and with the amount the craftsman typed. Without a key, the QR path alone still works and anything without a QR goes to manual review.
+When `ANTHROPIC_API_KEY` is set, Claude (model from `INVOICE_AI_MODEL`, default `claude-opus-5-5`, with server-side refusal fallbacks) reads the photo and returns schema-validated fields (seller, VAT number, invoice number, date, total, VAT, whether it looks like a real tax invoice, signs of editing). The pipeline compares it with the QR and with the amount the craftsman typed. Without a key, the QR path alone still works and anything without a QR goes to manual review.
 
 ### 3.3 Risk scoring (0–100, explainable)
 `assessInvoice()` returns a score and the reasons, each a stable code shown to reviewers in Arabic and English:
 
 | Signal | Weight |
 | --- | --- |
-| Phase 2 signature invalid / key differs from the dealer's pinned key | +60 / +70 |
+| Phase 2 signature invalid · valid signature from a device key not yet known for the dealer | +45 · +25 (never auto-approved) |
+| Phase 1 QR (no signature) · QR present but unreadable | +10 · +20 |
 | No QR on the invoice | +25 |
 | Seller not a partner dealer | +30 |
 | AI total vs QR total differ > 2 % · declared vs detected differ > 5 % | +35 · +15 |
@@ -128,7 +131,7 @@ When `ANTHROPIC_API_KEY` is set, Claude reads the photo and returns structured f
 | Device shared with other accounts | +30 |
 | AI suspects editing / not an invoice | +40 / +50 |
 
-≤ 20 with a valid signature and a partner dealer → **auto-approved** and points posted. ≥ 60 → **flagged**. Otherwise → **manual review** in the console, where batches are approved in one click.
+≤ 20 with a valid signature from a known device key of an active partner dealer → **auto-approved** and points posted. A duplicate fingerprint is rejected outright. ≥ 60 → **flagged**. Otherwise → **manual review** in the console, where batches are approved in one click.
 
 Referrals have their own assessment: same device as the referrer (+80), same IP /24 within 24 h (+30), more than 5 referrals in 24 h (+25), adjacent phone numbers (+15). Held referrals pay nothing until a reviewer clears them.
 
@@ -203,7 +206,7 @@ Files are at most 5 MB, so a single PUT is used; S3 multipart only starts at 5 M
 | Console mutations (tiers, verification, incentives, rewards, dealers, settings, fraud) are server actions over the same services, all audit-logged. |
 
 ### Cron
-`GET /api/cron/sweep` (Bearer `CRON_SECRET`): re-runs invoices stuck in `processing`, expires stale uploads and OTP challenges.
+`GET /api/cron/sweep` (Bearer `CRON_SECRET`): re-runs invoices stuck in `processing`, expires stale uploads and OTP challenges. `vercel.json` schedules it daily (the Hobby plan limit); polling `GET /invoices/{id}` also restarts a stuck invoice after 90 seconds, so nothing waits for the cron.
 
 ---
 
@@ -254,7 +257,7 @@ Files are at most 5 MB, so a single PUT is used; S3 multipart only starts at 5 M
 
 | # | Scope | Status |
 | --- | --- | --- |
-| **M1 — Foundation** | Schema, ledger, OTP auth, onboarding with referral, public profile with cache, portfolio with signed uploads, invoice pipeline (ZATCA QR + AI + risk), rewards and redemptions, referral L1/L2, incentive engine, admin console (review queue, tiers, fraud clusters, incentives, rewards, dealers, heatmap, exports), PWA + Web Push, Google Wallet, Arabic/English, tests. | **This repository** |
+| **M1 — Foundation** | Schema, ledger, OTP auth, onboarding with referral, public profile with cache, portfolio with signed uploads, invoice pipeline (ZATCA QR + AI + risk), rewards and redemptions, referral L1/L2, incentive engine, admin console (review queue, tiers, verification, fraud clusters, incentives with live preview, rewards, dealers, density map, exports, economics), PWA + Web Push, Google Wallet, Arabic/English, light/dark, tests, demo seed. | **This repository** |
 | M2 — Trust & identity | Nafath (national SSO) identity verification; freelance-licence check against the Ministry of HR API; Apple Wallet pass (PKCS #7 signing with a Pass Type ID certificate); WebAuthn passkeys for staff; client reviews tied to tracked leads. | Next |
 | M3 — Partners | Dealer and brand portals (their invoices, their craftsmen, co-funded campaigns), voucher code bulk import, STC Pay / urpay payouts, HLS video through Cloudflare Stream. | Next |
 | M4 — Scale | Points expiry with notices, read replicas for analytics, event stream to a warehouse, native wrappers (Capacitor) reusing `/api/v1`. | Next |

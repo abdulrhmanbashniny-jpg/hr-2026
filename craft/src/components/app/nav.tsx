@@ -38,6 +38,7 @@ const isActive = (path: string, href: string) => (href === '/app' ? path === '/a
 
 async function signOut(router: ReturnType<typeof useRouter>) {
   await api('/auth/logout', { body: {} }).catch(() => undefined);
+  navigator.serviceWorker?.controller?.postMessage({ type: 'logout' });
   router.replace('/');
   router.refresh();
 }

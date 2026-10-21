@@ -24,4 +24,4 @@ export async function getI18n() {
 }
 
 export type { Dictionary, Locale };
-export { f, fmtCode, fmtCompact, fmtDate, fmtMoney, fmtMonthYear, fmtNumber, fmtRelative } from './format';
+export { f, fmtCode, fmtCompact, fmtDate, fmtMoney, fmtMoneyCompact, fmtMonthYear, fmtNumber, fmtRelative } from './format';

@@ -35,7 +35,8 @@ export async function overview() {
     select to_char(d, 'YYYY-MM-DD') as day,
       (select count(*) from invoices i where i.created_at >= d and i.created_at < d + interval '1 day') as invoices,
       (select count(*) from craftsmen c where c.created_at >= d and c.created_at < d + interval '1 day') as signups,
-      (select coalesce(sum(delta),0) from points_ledger l where l.delta > 0 and l.created_at >= d and l.created_at < d + interval '1 day') as issued
+      (select coalesce(sum(delta),0) from points_ledger l where l.delta > 0 and l.kind <> 'redemption_refund' and l.created_at >= d and l.created_at < d + interval '1 day') as issued,
+      (select coalesce(-sum(delta),0) from points_ledger l where l.kind = 'redemption' and l.created_at >= d and l.created_at < d + interval '1 day') as redeemed
     from generate_series(date_trunc('day', now() at time zone 'Asia/Riyadh') - interval '29 days', date_trunc('day', now() at time zone 'Asia/Riyadh'), interval '1 day') d
     order by d
   `)
@@ -72,7 +73,7 @@ export async function overview() {
       referralsHeld: num(k.referrals_held),
       autoApprovalRate: num(k.approved_all) ? num(k.auto_approved) / num(k.approved_all) : 0,
     },
-    daily: daily.map((d) => ({ day: String(d.day), invoices: num(d.invoices), signups: num(d.signups), issued: num(d.issued) })),
+    daily: daily.map((d) => ({ day: String(d.day), invoices: num(d.invoices), signups: num(d.signups), issued: num(d.issued), redeemed: num(d.redeemed) })),
     cities,
     pointValueSar: eco.pointValueSar,
   };

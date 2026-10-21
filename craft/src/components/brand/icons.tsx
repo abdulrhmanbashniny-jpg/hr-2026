@@ -12,14 +12,10 @@ export function WhatsAppIcon(props: SVGProps<SVGSVGElement>) {
 export function LogoMark({ size = 32, className }: { size?: number; className?: string }) {
   return (
     <svg width={size} height={size} viewBox="0 0 48 48" className={className} aria-hidden>
-      <defs>
-        <linearGradient id="hm-a" x1="0" y1="0" x2="1" y2="1">
-          <stop offset="0" stopColor="#F59E0B" />
-          <stop offset="1" stopColor="#FBBF24" />
-        </linearGradient>
-      </defs>
+      {/* Solid fills only: a gradient id shared by several copies breaks when the first copy is hidden. */}
       <rect width="48" height="48" rx="14" fill="#102A43" />
-      <path d="M12 31c5-1 7-6 11-10s9-6 13-5c-1 4-4 8-8 11s-9 5-16 4Z" fill="url(#hm-a)" />
+      <path d="M12 31c5-1 7-6 11-10s9-6 13-5c-1 4-4 8-8 11s-9 5-16 4Z" fill="#F59E0B" />
+      <path d="M20 26c3-3 7-6 13-8-2 3-5 6-8 7.5-2 .9-3.6.8-5 .5Z" fill="#FBBF24" opacity=".85" />
       <path d="M12 31c2 3 5 5 9 5" stroke="#FBBF24" strokeWidth="2.4" strokeLinecap="round" fill="none" opacity=".7" />
       <circle cx="35" cy="14" r="2.6" fill="#fff" opacity=".9" />
     </svg>

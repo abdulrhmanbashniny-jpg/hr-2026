@@ -20,6 +20,12 @@ export function fmtMoney(n: number | null | undefined, locale: Locale, digits = 
   return locale === 'ar' ? `${v} ر.س` : `SAR ${v}`;
 }
 
+/** Compact money for tiles: 123.7K ر.س / SAR 1.2M. */
+export function fmtMoneyCompact(n: number, locale: Locale): string {
+  const v = n >= 10_000 ? fmtCompact(n) : fmtNumber(n);
+  return locale === 'ar' ? `${v} ر.س` : `SAR ${v}`;
+}
+
 export function fmtDate(iso: string | Date | null | undefined, locale: Locale, withTime = false): string {
   if (!iso) return '—';
   const d = typeof iso === 'string' && iso.length === 10 ? new Date(`${iso}T12:00:00Z`) : new Date(iso);

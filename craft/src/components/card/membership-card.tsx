@@ -61,7 +61,9 @@ export function MembershipCard({ data, qrTarget = 'profile', flippable = true, c
   const glareX = useTransform(sx, [0, 1], ['0%', '100%']);
   const glareY = useTransform(sy, [0, 1], ['0%', '100%']);
   const foilX = useTransform(sx, [0, 1], ['-40%', '40%']);
-  const glare = useTransform([glareX, glareY], ([x, y]) => `radial-gradient(circle at ${x} ${y}, rgba(255,255,255,.28), transparent 45%)`);
+  // The foil only catches the light when the card is tilted, like a real hologram.
+  const foilOpacity = useTransform([sx, sy], ([x, y]: number[]) => Math.min(1, Math.hypot(x - 0.5, y - 0.5) * 3));
+  const glare = useTransform([glareX, glareY], ([x, y]) => `radial-gradient(circle at ${x} ${y}, rgba(255,255,255,.18), transparent 45%)`);
 
   const onPointer = useCallback(
     (e: React.PointerEvent) => {
@@ -121,7 +123,7 @@ export function MembershipCard({ data, qrTarget = 'profile', flippable = true, c
             {/* Front */}
             <div className="grain absolute inset-0 overflow-hidden rounded-[22px] text-white shadow-lg [backface-visibility:hidden]" style={{ background: finish.base }}>
               <div className="pattern-grid absolute inset-0 opacity-60" />
-              <motion.div className="pointer-events-none absolute inset-y-0 -inset-x-1/2 mix-blend-screen" style={{ background: finish.foil, x: foilX }} />
+              <motion.div className="pointer-events-none absolute inset-y-0 -inset-x-1/2 mix-blend-screen" style={{ background: finish.foil, x: foilX, opacity: foilOpacity }} />
               <motion.div className="pointer-events-none absolute inset-0" style={{ background: glare }} />
               <div className="relative flex h-full flex-col justify-between p-[6%]">
                 <div className="flex items-start justify-between gap-3">
