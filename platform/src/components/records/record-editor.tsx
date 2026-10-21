@@ -1,16 +1,18 @@
 'use client';
 
 import { Archive, MoreHorizontal, Pencil, Plus, RefreshCw, Trash2, Undo2 } from 'lucide-react';
-import { useEffect, useRef, useState, useTransition } from 'react';
-import { archiveRecord, deleteRecord, loadRecord, restoreRecord, saveRecord, updateRecord, type RecordKind } from '@/app/app/records-actions';
+import { useEffect, useRef, useState, useTransition, type CSSProperties } from 'react';
+import { createPortal } from 'react-dom';
+import Link from 'next/link';
+import { archiveRecord, deleteRecord, restoreRecord, updateRecord, type RecordKind } from '@/app/app/records-actions';
 import { Notice } from '@/components/ui/card';
-import { TEMPLATES } from '@/lib/imports/templates';
 import { f } from '@/lib/i18n/format';
 import { DateInput } from '@/components/ui/date-input';
 import { Field, SubmitButton, useFeedbackAction } from '@/components/ui/form';
 import { Modal } from '@/components/ui/modal';
 import { useToast } from '@/components/ui/toast';
 import { useI18n } from '@/lib/i18n/client';
+import { recordEditPath, recordNewPath } from '@/lib/records/meta';
 
 export type EditorField =
   | { name: string; label: string; type: 'date'; value: string | null }
@@ -24,9 +26,9 @@ export function RecordEditor({ kind, id, title, hint, fields, canEdit }: { kind:
   if (!canEdit) return null;
   return (
     <>
-      <button type="button" className="ui-btn ui-btn--ghost ui-btn--sm" onClick={() => setOpen(true)}>
+      <button type="button" className="ui-btn ui-btn--ghost ui-btn--sm" title={title} aria-label={title} onClick={() => setOpen(true)}>
         <RefreshCw size={16} />
-        {t.common.update}
+        <span className="rec-update__label">{t.common.update}</span>
       </button>
       <Modal open={open} onClose={() => setOpen(false)} title={title}>
         <form action={action} className="flex flex-col gap-3.5">
@@ -135,120 +137,14 @@ export function RestoreButton({ kind, id, canEdit }: { kind: RecordKind; id: str
   );
 }
 
-type Values = Record<string, string | boolean | null>;
-
-/** The whole record as a form, generated from the template definition: every column the government file has. */
-function RecordForm({ kind, id, initial, onClose }: { kind: RecordKind; id: string | null; initial: Values; onClose: () => void }) {
-  const { t, locale } = useI18n();
-  const def = TEMPLATES[kind];
-  const derived = new Set([...Object.values(def.companions), ...def.fields.flatMap((x) => (x.hijriField ? [x.hijriField] : []))]);
-  const [, action] = useFeedbackAction(saveRecord.bind(null, kind, id), onClose);
-  const val = (k: string) => {
-    const v = initial[k];
-    return v === null || v === undefined || typeof v === 'boolean' ? '' : v;
-  };
-  return (
-    <form action={action} className="flex flex-col gap-4">
-      <p className="text-sm text-muted">{t.records.manualHint}</p>
-      <div className="grid gap-4 md:grid-cols-2">
-        {def.fields
-          .filter((fd) => !derived.has(fd.field))
-          .map((fd) => {
-            const label = locale === 'ar' ? fd.labelAr : fd.labelEn;
-            const fid = `rec-${kind}-${fd.field}`;
-            const isKey = fd.field === def.keyField;
-            return (
-              <Field key={fd.field} label={label} htmlFor={fid} required={fd.required}>
-                {fd.type === 'date' || fd.type === 'hijriDate' ? (
-                  <DateInput id={fid} name={fd.field} defaultValue={val(fd.field).slice(0, 10) || null} required={fd.required} />
-                ) : fd.type === 'bool' ? (
-                  <label className="flex min-h-[44px] items-center gap-2">
-                    <input id={fid} type="checkbox" name={fd.field} defaultChecked={initial[fd.field] === true} className="ui-check" />
-                    <span className="text-sm">{label}</span>
-                  </label>
-                ) : (
-                  <input
-                    id={fid}
-                    name={fd.field}
-                    defaultValue={val(fd.field)}
-                    required={fd.required}
-                    inputMode={fd.type === 'id' || fd.type === 'int' || fd.type === 'money' ? 'decimal' : undefined}
-                    className={`ui-input ${fd.type === 'text' ? '' : 'ui-input--ltr ui-num'}`}
-                    autoFocus={isKey && !id}
-                  />
-                )}
-              </Field>
-            );
-          })}
-        {kind === 'gosi' ? (
-          <Field label={t.records.probation} htmlFor="rec-probation">
-            <select id="rec-probation" name="probationDays" defaultValue={val('probationDays')} className="ui-select">
-              <option value="">{t.records.probationNone}</option>
-              <option value="90">{t.records.probation90}</option>
-              <option value="180">{t.records.probation180}</option>
-            </select>
-          </Field>
-        ) : null}
-        {kind === 'vehicles' ? (
-          <Field label={t.fleet.opCardRequirement} htmlFor="rec-opreq">
-            <select id="rec-opreq" name="operatingCardRequirement" defaultValue={val('operatingCardRequirement') || 'auto'} className="ui-select">
-              <option value="auto">{t.fleet.opCardAuto}</option>
-              <option value="required">{t.fleet.opCardForce}</option>
-              <option value="exempt">{t.fleet.opCardExempt}</option>
-            </select>
-          </Field>
-        ) : null}
-      </div>
-      <div className="ui-modal__foot" style={{ margin: '0 -20px -20px' }}>
-        <button type="button" className="ui-btn ui-btn--ghost" onClick={onClose}>
-          {t.common.cancel}
-        </button>
-        <SubmitButton>{id ? t.common.save : t.records.add}</SubmitButton>
-      </div>
-    </form>
-  );
-}
-
 export function AddRecordButton({ kind, canEdit }: { kind: RecordKind; canEdit: boolean }) {
-  const { t, locale } = useI18n();
-  const [open, setOpen] = useState(false);
-  if (!canEdit) return null;
-  const def = TEMPLATES[kind];
-  return (
-    <>
-      <button type="button" className="ui-btn ui-btn--outline" onClick={() => setOpen(true)}>
-        <Plus size={18} />
-        {t.records.add}
-      </button>
-      <Modal open={open} onClose={() => setOpen(false)} title={f(t.records.addTitle, { template: locale === 'ar' ? def.nameAr : def.nameEn })} wide>
-        {open ? <RecordForm kind={kind} id={null} initial={{}} onClose={() => setOpen(false)} /> : null}
-      </Modal>
-    </>
-  );
-}
-
-function EditAllDialog({ kind, id, name, onClose }: { kind: RecordKind; id: string; name: string; onClose: () => void }) {
   const { t } = useI18n();
-  const toast = useToast();
-  const [values, setValues] = useState<Values | null>(null);
-  useEffect(() => {
-    let live = true;
-    loadRecord(kind, id).then((r) => {
-      if (!live) return;
-      if (r.ok && r.data) setValues(r.data);
-      else {
-        toast(r.ok ? t.common.error : r.error, 'err');
-        onClose();
-      }
-    });
-    return () => {
-      live = false;
-    };
-  }, [kind, id, onClose, t, toast]);
+  if (!canEdit) return null;
   return (
-    <Modal open onClose={onClose} title={f(t.records.editTitle, { name })} wide>
-      {values ? <RecordForm kind={kind} id={id} initial={values} onClose={onClose} /> : <div className="ui-empty"><span className="ui-spinner" />{t.records.loading}</div>}
-    </Modal>
+    <Link href={recordNewPath(kind)} className="ui-btn ui-btn--outline">
+      <Plus size={18} />
+      {t.records.add}
+    </Link>
   );
 }
 
@@ -286,36 +182,60 @@ function DeleteDialog({ kind, id, name, onClose }: { kind: RecordKind; id: strin
 /** "⋯" menu on each row: edit every field, archive with a reason, or delete for good. */
 export function RowActions({ kind, id, name, canEdit, archived }: { kind: RecordKind; id: string; name: string; canEdit: boolean; archived?: boolean }) {
   const { t } = useI18n();
-  const [menu, setMenu] = useState(false);
-  const [dialog, setDialog] = useState<null | 'edit' | 'archive' | 'delete'>(null);
+  const [menu, setMenu] = useState<CSSProperties | null>(null);
+  const [dialog, setDialog] = useState<null | 'archive' | 'delete'>(null);
   const ref = useRef<HTMLDivElement>(null);
+  const btn = useRef<HTMLButtonElement>(null);
+  const list = useRef<HTMLDivElement>(null);
+  // The menu is drawn over the page next to its button, so the table's scroll area never clips it;
+  // near the bottom of the screen it opens upwards, and it follows the button when the page scrolls.
+  const place = (): CSSProperties | null => {
+    if (!btn.current) return null;
+    const r = btn.current.getBoundingClientRect();
+    const style: CSSProperties = { position: 'fixed', minWidth: 200, zIndex: 80 };
+    if (window.innerHeight - r.bottom < 200) Object.assign(style, { top: 'auto', bottom: window.innerHeight - r.top + 6 });
+    else style.top = r.bottom + 6;
+    if (getComputedStyle(btn.current).direction === 'rtl') style.left = r.left;
+    else style.right = window.innerWidth - r.right;
+    return style;
+  };
+  const open = !!menu;
   useEffect(() => {
-    if (!menu) return;
-    const onDoc = (e: MouseEvent) => !ref.current?.contains(e.target as Node) && setMenu(false);
-    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && setMenu(false);
+    if (!open) return;
+    const inside = (n: EventTarget | null) => ref.current?.contains(n as Node) || list.current?.contains(n as Node);
+    const onDoc = (e: MouseEvent) => !inside(e.target) && setMenu(null);
+    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && setMenu(null);
+    const follow = () => setMenu(place());
     document.addEventListener('mousedown', onDoc);
     document.addEventListener('keydown', onKey);
+    window.addEventListener('scroll', follow, true);
+    window.addEventListener('resize', follow);
     return () => {
       document.removeEventListener('mousedown', onDoc);
       document.removeEventListener('keydown', onKey);
+      window.removeEventListener('scroll', follow, true);
+      window.removeEventListener('resize', follow);
     };
-  }, [menu]);
+    // place() reads only refs and the window
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open]);
   if (!canEdit) return null;
-  const pick = (d: 'edit' | 'archive' | 'delete') => {
-    setMenu(false);
+  const toggle = () => setMenu(menu ? null : place());
+  const pick = (d: 'archive' | 'delete') => {
+    setMenu(null);
     setDialog(d);
   };
   return (
     <div ref={ref} className="relative">
-      <button type="button" className="ui-btn ui-btn--ghost ui-btn--icon" aria-label={t.records.more} aria-haspopup="menu" aria-expanded={menu} onClick={() => setMenu(!menu)}>
+      <button ref={btn} type="button" className="ui-btn ui-btn--ghost ui-btn--icon" aria-label={t.records.more} aria-haspopup="menu" aria-expanded={!!menu} onClick={toggle}>
         <MoreHorizontal size={18} />
       </button>
-      {menu ? (
-        <div className="ui-menu" role="menu" style={{ minWidth: 200 }}>
-          <button type="button" role="menuitem" onClick={() => pick('edit')}>
+      {menu ? createPortal(
+        <div ref={list} className="ui-menu" role="menu" style={menu}>
+          <Link href={recordEditPath(kind, id)} role="menuitem" onClick={() => setMenu(null)}>
             <Pencil size={16} />
             {t.records.editAll}
-          </button>
+          </Link>
           {archived ? null : (
             <button type="button" role="menuitem" onClick={() => pick('archive')}>
               <Archive size={16} />
@@ -327,9 +247,9 @@ export function RowActions({ kind, id, name, canEdit, archived }: { kind: Record
             <Trash2 size={16} />
             {t.records.delete}
           </button>
-        </div>
+        </div>,
+        document.body,
       ) : null}
-      {dialog === 'edit' ? <EditAllDialog kind={kind} id={id} name={name} onClose={() => setDialog(null)} /> : null}
       {dialog === 'archive' ? <ArchiveButton kind={kind} id={id} name={name} canEdit open onClose={() => setDialog(null)} /> : null}
       {dialog === 'delete' ? <DeleteDialog kind={kind} id={id} name={name} onClose={() => setDialog(null)} /> : null}
     </div>

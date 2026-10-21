@@ -185,7 +185,8 @@ export function DataTable<T>({ rows, columns, rowKey, search, filters = [], init
                   onClick={(e) => {
                     if (!href) return;
                     const target = e.target as HTMLElement;
-                    if (target.closest('button, a, input, select, label')) return;
+                    // Clicks inside a dialog opened from this row bubble here through the React tree.
+                    if (!e.currentTarget.contains(target) || target.closest('button, a, input, select, textarea, label')) return;
                     router.push(href);
                   }}
                 >

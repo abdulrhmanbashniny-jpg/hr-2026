@@ -880,6 +880,8 @@ export const en: Dictionary = {
     addTitle: 'Add record — {template}',
     editAll: 'Edit all details',
     editTitle: 'Edit record — {name}',
+    addSub: 'Enter the record as it appears on the government platform, then save to start tracking it.',
+    editSub: 'Change any field and save. Alerts are recalculated as soon as you save.',
     more: 'More actions',
     archive: 'Archive',
     delete: 'Delete permanently',

@@ -18,6 +18,21 @@ export interface Release {
 
 export const RELEASES: Release[] = [
   {
+    version: '3.6',
+    date: '2026-10-21',
+    kind: 'minor',
+    ar: [
+      'إضافة سجل وتعديل كل بياناته صارا في صفحة كاملة بدل النافذة الصغيرة، في المقيمين والتأمينات الاجتماعية والمركبات وبطاقات التشغيل والسائقين، مع شريط حفظ ظاهر دائماً.',
+      'النوافذ المنبثقة تظهر في منتصف الشاشة كاملة ولا تُقص داخل البطاقات، وقائمة «⋯» تظهر كاملة حتى في آخر صف.',
+      'جداول السجلات تتسع داخل الصفحة بلا تمرير جانبي: التواريخ في سطر واحد ورقم الهوية تحت الاسم في جدول التأمينات.',
+    ],
+    en: [
+      'Adding a record and editing all its fields now open as a full page instead of a small window, for residents, GOSI, vehicles, operating cards and driver cards, with an always-visible save bar.',
+      'Dialogs open centred over the whole screen instead of being clipped inside cards, and the "⋯" menu shows in full even on the last row.',
+      'Record tables fit the page without sideways scrolling: dates stay on one line and the ID number sits under the name in the GOSI table.',
+    ],
+  },
+  {
     version: '3.5',
     date: '2026-10-21',
     kind: 'minor',
