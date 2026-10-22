@@ -1,0 +1,1 @@
+ALTER TABLE "invoices" ADD COLUMN "processing_lease_until" timestamp with time zone;
