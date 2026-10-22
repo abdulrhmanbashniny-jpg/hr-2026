@@ -2,7 +2,9 @@
 
 import { Contact, Copy, Download, Nfc, Share2, Wallet, WifiOff } from 'lucide-react';
 import { useEffect, useState } from 'react';
+import { DownloadCardButton } from '@/components/card/download-card';
 import { MembershipCard, type CardData } from '@/components/card/membership-card';
+import { PhotoEditor } from './photo-editor';
 import { Badge } from '@/components/ui/badge';
 import { Button, buttonClass } from '@/components/ui/button';
 import { Segmented } from '@/components/ui/controls';
@@ -82,6 +84,8 @@ export function CardStudio({ data, googleWallet }: { data: CardData; googleWalle
         <p className="text-center text-sm text-muted">{target === 'join' ? t.card.qrJoinHint : t.card.qrProfileHint}</p>
       </div>
       <div className="space-y-3">
+        <PhotoEditor name={data.name} photoUrl={data.photoUrl ?? null} />
+        <DownloadCardButton data={data} className="h-12 w-full rounded-xl bg-primary-container text-label-lg text-white shadow-sm hover:bg-primary" />
         <div className="surface flex items-center gap-2 p-2 ps-4">
           <span className="num min-w-0 flex-1 truncate text-sm text-ink-2">{link.replace(/^https?:\/\//, '')}</span>
           <Button
@@ -96,7 +100,7 @@ export function CardStudio({ data, googleWallet }: { data: CardData; googleWalle
             {t.common.copy}
           </Button>
         </div>
-        <Button variant="primary" size="lg" className="w-full" icon={<Share2 className="size-5" />} onClick={share}>
+        <Button variant="accent" size="lg" className="w-full" icon={<Share2 className="size-5" />} onClick={share}>
           {t.common.share}
         </Button>
         <Button variant="secondary" size="lg" className="w-full" icon={<Wallet className="size-5" />} loading={walletBusy} onClick={addToGoogleWallet} disabled={!googleWallet}>
