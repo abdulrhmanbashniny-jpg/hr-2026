@@ -24,7 +24,9 @@ import {
   leads,
   portfolioMedia,
   portfolioProjects,
+  products,
   referrals,
+  reviews,
   regions,
   rewards,
   trades,
@@ -32,7 +34,7 @@ import {
   verificationDocuments,
   wallets,
 } from './schema';
-import { BRANDS, BUSINESS, CITIES, DEALERS, FIRST, PROJECTS, REGIONS, REWARDS, TRADES } from './seed-data';
+import { BRANDS, BUSINESS, CITIES, DEALERS, FACTORY_PRODUCTS, FIRST, PROJECTS, REGIONS, REVIEW_TEXTS, REVIEWERS, REWARDS, TRADES } from './seed-data';
 
 const db = getDb();
 const MEDIA_DIR = path.resolve(import.meta.dirname, '../../scripts/seed-media');
@@ -52,7 +54,7 @@ const DEMO_PHONE = '+966500000010';
 const ADMIN_PHONE = process.env.SEED_ADMIN_PHONE || '+966500000001';
 const REVIEWER_PHONE = '+966500000002';
 
-async function storeFile(prefix: 'portfolio' | 'invoice' | 'document', file: string, mime = 'image/jpeg') {
+async function storeFile(prefix: 'portfolio' | 'invoice' | 'document' | 'avatar' | 'product', file: string, mime = 'image/jpeg') {
   const body = await readFile(path.join(MEDIA_DIR, file));
   const now = new Date();
   const key = `${prefix}/${now.getUTCFullYear()}/${String(now.getUTCMonth() + 1).padStart(2, '0')}/${token()}.jpg`;
@@ -126,6 +128,31 @@ async function main() {
     })),
   );
 
+  // ── The factory's catalogue ─────────────────────────────
+  const productIds: string[] = [];
+  for (const [i, pr] of FACTORY_PRODUCTS.entries()) {
+    const img = await storeFile('product', `products/${pr.file}.jpg`);
+    const [row] = await db
+      .insert(products)
+      .values({
+        nameAr: pr.nameAr,
+        nameEn: pr.nameEn,
+        category: pr.category,
+        descriptionAr: pr.descriptionAr,
+        descriptionEn: pr.descriptionEn,
+        finishAr: pr.finishAr,
+        finishEn: pr.finishEn,
+        coverageSqmPerLiter: pr.coverage,
+        sizes: [...pr.sizes],
+        swatch: pr.swatch,
+        imageKey: img.key,
+        isFeatured: pr.featured,
+        sortOrder: i,
+      })
+      .returning({ id: products.id });
+    productIds.push(row.id);
+  }
+
   // ── Staff ───────────────────────────────────────────────
   const [admin] = await db.insert(users).values({ phone: ADMIN_PHONE, name: 'مدير المنصة', role: 'super_admin' }).returning();
   await db.insert(users).values({ phone: REVIEWER_PHONE, name: 'مراجع الفواتير', role: 'reviewer' });
@@ -150,7 +177,7 @@ async function main() {
   const TOTAL = 30;
   for (let i = 0; i < TOTAL; i++) {
     const demo = i === 0;
-    const name = demo ? 'أبو فهد للدهانات' : `${FIRST[i % FIRST.length]} ${BUSINESS[i % BUSINESS.length]}`;
+    const name = demo ? 'سالم عبدالله العتيبي' : `${FIRST[i % FIRST.length]} ${BUSINESS[i % BUSINESS.length]}`;
     const cityId = demo ? 'riyadh' : i < 7 ? pick(['riyadh', 'riyadh', 'kharj']) : pick(cityPool);
     const tier = demo ? 'A' : i % 9 === 1 ? 'A' : i % 3 === 0 ? 'B' : 'C';
     const createdAt = demo ? ago(420) : ago(between(3, 380), 20);
@@ -190,6 +217,8 @@ async function main() {
     people.push({ id: c.id, userId: u.id, cityId, tier, createdAt, name });
   }
   const demo = people[0];
+  const demoPhoto = await storeFile('avatar', 'avatar-demo.jpg');
+  await db.update(craftsmen).set({ avatarKey: demoPhoto.key }).where(eq(craftsmen.id, demo.id));
 
   // Referral tree: the demo craftsman invited six colleagues; three of them invited others (level 2).
   const tree: [number, number][] = [
@@ -204,7 +233,7 @@ async function main() {
 
   // ── Portfolios ──────────────────────────────────────────
   const projectPlan: [number, number[], boolean[]][] = [
-    [0, [0, 2, 3, 1], [true, true, false, false]],
+    [0, [0, 2, 3], [true, true, false]],
     ...people.slice(1).flatMap((p, k): [number, number[], boolean[]][] => (p.tier !== 'C' || k % 4 === 0 ? [[k + 1, [between(0, PROJECTS.length - 1)], [rand() < 0.3]]] : [])),
   ];
   for (const [who, list, verified] of projectPlan) {
@@ -223,6 +252,7 @@ async function main() {
           areaSqm: pr.area,
           brandId: brandIds[pick(BRANDS).key],
           colors: [...pr.colors],
+          productIds: [productIds[[0, 1, 6, 2, 1, 0][pi]], ...(rand() < 0.5 ? [productIds[4]] : [])],
           verification: verified[j] ? 'field_verified' : 'self',
           verifiedBy: verified[j] ? admin.id : null,
           verifiedAt: verified[j] ? ago(between(1, 60)) : null,
@@ -250,6 +280,30 @@ async function main() {
         });
       }
     }
+  }
+
+  // ── Client reviews ──────────────────────────────────────
+  for (const [idx, p] of people.entries()) {
+    const n = idx === 0 ? 6 : p.tier === 'C' ? between(0, 1) : between(1, 4);
+    for (let k = 0; k < n; k++) {
+      const r = REVIEW_TEXTS[(idx + k) % REVIEW_TEXTS.length];
+      await db.insert(reviews).values({
+        craftsmanId: p.id,
+        authorName: REVIEWERS[(idx * 3 + k) % REVIEWERS.length],
+        rating: r.rating,
+        body: r.body,
+        projectLabel: r.project,
+        status: 'approved',
+        contactedViaPlatform: rand() < 0.8,
+        moderatedBy: admin.id,
+        moderatedAt: ago(between(1, 90)),
+        createdAt: ago(between(2, 120)),
+      });
+    }
+  }
+  // A few waiting for moderation.
+  for (const [k, who] of [3, 5, 8].entries()) {
+    await db.insert(reviews).values({ craftsmanId: people[who].id, authorName: REVIEWERS[(k + 4) % REVIEWERS.length], rating: [5, 4, 2][k], body: ['شغل ممتاز وسريع، أنصح فيه.', 'جيد لكن احتاج متابعة في التنظيف.', 'تأخر كثير عن الموعد ولم يرد على الاتصالات.'][k], projectLabel: 'شقة', createdAt: ago(k) });
   }
 
   // ── Invoices, approved through the real pipeline ────────

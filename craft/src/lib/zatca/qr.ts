@@ -1,4 +1,5 @@
 import { createHash, createPublicKey, verify } from 'node:crypto';
+import { normalizeDigits } from '@/lib/digits';
 import { isValidVatNumber } from '@/lib/ids';
 
 /**
@@ -52,11 +53,16 @@ export function decodeTlv(bytes: Buffer): TlvField[] | null {
 }
 
 function parseAmount(v: string): number | null {
-  const n = Number(v.replace(/[^\d.]/g, ''));
-  return Number.isFinite(n) && v.trim() !== '' ? Math.round(n * 100) / 100 : null;
+  // POS vendors print Arabic-Indic digits and the Arabic decimal separator too.
+  const ascii = normalizeDigits(v).replace(/[٫,]/g, (c) => (c === '٫' ? '.' : ''));
+  const cleaned = ascii.replace(/[^\d.]/g, '');
+  if (!/\d/.test(cleaned)) return null;
+  const n = Number(cleaned);
+  return Number.isFinite(n) ? Math.round(n * 100) / 100 : null;
 }
 
-function parseTimestamp(v: string): string | null {
+/** ISO-8601 from a ZATCA/AI date; a time without a zone is Riyadh time (UTC+3). */
+export function parseTimestamp(v: string): string | null {
   const s = v.trim().replace(' ', 'T');
   if (!/^\d{4}-\d{2}-\d{2}(T\d{2}:\d{2}(:\d{2}(\.\d+)?)?)?/.test(s)) return null;
   const withTime = s.length === 10 ? `${s}T00:00:00` : s;
@@ -121,8 +127,8 @@ export type SignatureVerdict = 'unsigned' | 'valid' | 'invalid';
  * tag 6 using the key in tag 8. A valid result proves the invoice hash was signed by the holder of
  * that key; whether the key belongs to the dealer is decided against the dealer's known keys.
  */
-export function verifyZatcaSignature(qr: ZatcaQr): { verdict: SignatureVerdict; publicKeyB64: string | null } {
-  if (qr.phase !== 2 || !qr.invoiceHash || !qr.signature || !qr.publicKey) return { verdict: 'unsigned', publicKeyB64: null };
+export function verifyZatcaSignature(qr: ZatcaQr): { verdict: SignatureVerdict; publicKeyB64: string | null; digest: Buffer | null } {
+  if (qr.phase !== 2 || !qr.invoiceHash || !qr.signature || !qr.publicKey) return { verdict: 'unsigned', publicKeyB64: null, digest: null };
   const keys = candidates(qr.publicKey, isDer);
   const signatures = candidates(qr.signature, isDer);
   const messages = [...candidates(qr.invoiceHash, (b) => b.length === 32), qr.invoiceHash];
@@ -138,24 +144,37 @@ export function verifyZatcaSignature(qr: ZatcaQr): { verdict: SignatureVerdict; 
     for (const sig of signatures)
       for (const msg of messages) {
         try {
-          if (verify('sha256', msg, key, sig)) return { verdict: 'valid', publicKeyB64 };
+          if (verify('sha256', msg, key, sig)) return { verdict: 'valid', publicKeyB64, digest: canonicalDigest(msg) };
         } catch {
           // Malformed signature encoding: try the next interpretation.
         }
       }
-    return { verdict: 'invalid', publicKeyB64 };
+    return { verdict: 'invalid', publicKeyB64, digest: null };
   }
-  return { verdict: 'invalid', publicKeyB64: null };
+  return { verdict: 'invalid', publicKeyB64: null, digest: null };
 }
 
 /**
- * One genuine invoice, one claim. Phase 2 invoices are identified by their hash, which covers the
- * whole XML invoice, so editing the amount in the QR does not produce a new fingerprint. Phase 1
- * invoices fall back to seller + time + total.
+ * The invoice hash as 32 bytes, however tag 6 was encoded (raw, Base64, with or without padding),
+ * so that re-encoding the same signed hash cannot produce a "new" invoice.
  */
-export function invoiceFingerprint(input: { vatNumber: string; invoiceHash?: Buffer | null; timestamp?: string | null; total?: number | null }): string {
-  const basis = input.invoiceHash?.length
-    ? `h:${input.vatNumber}:${input.invoiceHash.toString('base64')}`
-    : `t:${input.vatNumber}:${input.timestamp ?? ''}:${(input.total ?? 0).toFixed(2)}`;
+function canonicalDigest(msg: Buffer): Buffer {
+  if (msg.length === 32) return msg;
+  const text = msg.toString('latin1');
+  if (/^[A-Za-z0-9+/]+=*$/.test(text)) {
+    const decoded = Buffer.from(text, 'base64');
+    if (decoded.length === 32) return decoded;
+  }
+  return createHash('sha256').update(msg).digest();
+}
+
+/**
+ * One genuine invoice, one claim. Signed (Phase 2) invoices are identified only by the canonical
+ * 32-byte hash that the signature verified — it covers the whole XML invoice, and none of the
+ * unsigned QR text (seller VAT, time, amounts) takes part, so rewriting those fields or re-encoding
+ * tag 6 cannot produce a new fingerprint. Phase 1 invoices fall back to seller + time + total.
+ */
+export function invoiceFingerprint(input: { vatNumber: string; digest?: Buffer | null; timestamp?: string | null; total?: number | null }): string {
+  const basis = input.digest?.length === 32 ? `h:${input.digest.toString('hex')}` : `t:${input.vatNumber}:${input.timestamp ?? ''}:${(input.total ?? 0).toFixed(2)}`;
   return createHash('sha256').update(basis).digest('hex');
 }

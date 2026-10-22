@@ -15,11 +15,15 @@ export interface InvoiceRiskInput {
     vatNumber: string | null;
     total: number | null;
   };
-  dealer: { found: boolean; active: boolean };
+  /** hasKeys: the dealer has issued Phase 2 (signed) invoices before. */
+  dealer: { found: boolean; active: boolean; hasKeys?: boolean };
   extraction: InvoiceExtraction | null;
   aiConfigured: boolean;
   declaredAmount: number | null;
   issuedAt: Date | null;
+  /** The issue date in the QR (tag 3, not covered by the signature) and the one read from the photo. */
+  qrIssuedAt?: Date | null;
+  aiIssuedAt?: Date | null;
   /** The total the decision is based on (QR, else AI, else declared). */
   total: number | null;
   /** 95th percentile of this dealer's approved totals, when enough history exists. */
@@ -42,7 +46,9 @@ const relDiff = (a: number, b: number) => Math.abs(a - b) / Math.max(1, Math.max
 /**
  * Explainable invoice risk. Each signal adds a fixed weight and a stable code that the review
  * console shows in plain language. Only invoices with a valid ZATCA signature from a key the dealer
- * is known to use, at low risk, are approved without a person looking at them.
+ * is known to use, at low risk, are approved without a person looking at them — and only when the
+ * photo independently confirms what the signature does not cover: the total and the issue date
+ * (QR tags 3–5 are plain text a client can rewrite).
  */
 export function assessInvoice(input: InvoiceRiskInput, eco: Economics): InvoiceRiskResult {
   const reasons: RiskReason[] = [];
@@ -59,6 +65,9 @@ export function assessInvoice(input: InvoiceRiskInput, eco: Economics): InvoiceR
   if (qr.decoded) {
     if (!input.dealer.found) add('dealer_not_partner', 30);
     else if (!input.dealer.active) add('dealer_inactive', 30);
+    // A dealer whose till signs its invoices does not print unsigned ones: a Phase 1 copy of a
+    // signed receipt is how a duplicate would slip past the hash-based fingerprint.
+    if (qr.phase === 1 && input.dealer.hasKeys) add('phase1_from_signing_dealer', 35);
   }
 
   if (extraction) {
@@ -67,9 +76,12 @@ export function assessInvoice(input: InvoiceRiskInput, eco: Economics): InvoiceR
     if (qr.total !== null && extraction.total !== null && relDiff(qr.total, extraction.total) > 0.02)
       add('ai_total_mismatch', 35, { qr: qr.total, photo: extraction.total });
     if (qr.vatNumber && extraction.sellerVat && extraction.sellerVat !== qr.vatNumber) add('ai_vat_mismatch', 30);
-  } else if (!qr.decoded) {
+    if (input.qrIssuedAt && input.aiIssuedAt && Math.abs(input.qrIssuedAt.getTime() - input.aiIssuedAt.getTime()) > 36 * 3_600_000)
+      add('ai_date_mismatch', 30, { qr: input.qrIssuedAt.toISOString().slice(0, 10), photo: input.aiIssuedAt.toISOString().slice(0, 10) });
+  } else {
     add('ai_unavailable', input.aiConfigured ? 10 : 5);
   }
+  if (!input.issuedAt) add('issue_date_unknown', 10);
 
   if (input.declaredAmount !== null && input.total !== null && relDiff(input.declaredAmount, input.total) > 0.05)
     add('declared_mismatch', 15, { declared: input.declaredAmount, detected: input.total });
@@ -91,11 +103,23 @@ export function assessInvoice(input: InvoiceRiskInput, eco: Economics): InvoiceR
   if (input.sharedDeviceAccounts > 0) add('shared_device', 30, { accounts: input.sharedDeviceAccounts });
 
   const score = totalRisk(reasons);
-  const rejectReason = (['invoice_too_old', 'amount_unknown'] as const).find((c) => reasons.some((r) => r.code === c)) ?? null;
+  const has = (code: RiskCode) => reasons.some((r) => r.code === code);
+  const rejectReason = (['invoice_too_old', 'amount_unknown'] as const).find(has) ?? null;
+  // The independent witness: the photo shows the same total (and, when both are known, the same day).
+  const photoConfirms = !!extraction && extraction.total !== null && qr.total !== null && !has('ai_total_mismatch') && !has('ai_date_mismatch') && !has('editing_suspected');
   let decision: InvoiceDecision;
   if (rejectReason) decision = 'reject';
   else if (score >= eco.flagMinRisk) decision = 'flag';
-  else if (score <= eco.autoApproveMaxRisk && qr.signature === 'valid' && qr.keyKnown === true && input.dealer.found && input.dealer.active)
+  else if (
+    score <= eco.autoApproveMaxRisk &&
+    qr.signature === 'valid' &&
+    qr.keyKnown === true &&
+    input.dealer.found &&
+    input.dealer.active &&
+    photoConfirms &&
+    !!input.issuedAt &&
+    input.invoicesToday < eco.dailyInvoiceCap
+  )
     decision = 'auto_approve';
   else decision = 'review';
   return { score, reasons, decision, rejectReason };

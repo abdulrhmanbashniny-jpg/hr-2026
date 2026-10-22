@@ -38,7 +38,7 @@ export function Dialog({ open, onClose, title, children, footer, wide }: { open:
             initial={{ opacity: 0, y: 40 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: 40 }}
-            className={`relative flex max-h-[92dvh] w-full flex-col overflow-hidden rounded-t-3xl border border-line bg-surface shadow-lg sm:rounded-3xl ${wide ? 'sm:max-w-3xl' : 'sm:max-w-lg'}`}
+            className={`relative flex max-h-[92dvh] w-full flex-col overflow-hidden rounded-t-3xl border border-line bg-surface-container-lowest shadow-lg sm:rounded-3xl ${wide ? 'sm:max-w-3xl' : 'sm:max-w-lg'}`}
           >
             <div className="flex items-center justify-between gap-3 border-b border-line px-5 py-4">
               <h2 id={titleId} className="text-lg font-semibold">

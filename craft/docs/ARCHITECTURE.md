@@ -108,12 +108,13 @@ Every B2C tax invoice in the Kingdom carries a QR code in ZATCA's Base64 **TLV**
 1. The phone camera reads the QR on the receipt (BarcodeDetector, or jsQR as fallback) while the photo is taken.
 2. The server decodes the TLV, checks the VAT number format (15 digits, starts and ends with 3) and the seller against the **partner dealer registry**.
 3. For Phase 2 codes it **verifies the ECDSA (secp256k1) signature over the invoice hash with the embedded public key** (raw and Base64 encodings are both accepted, since POS vendors differ), then checks that key against the dealer's **known device keys**. A key joins the set when staff approve an invoice signed with it; an unknown key sends the invoice to manual review instead of auto-approval.
-4. The invoice **fingerprint** is unique platform-wide: for Phase 2 it is the invoice hash (which covers the whole XML invoice), so a genuine receipt can be claimed once, by one craftsman, and editing the amount in the QR does not produce a new claim. Phase 1 falls back to `VAT number | time | total` and is never auto-approved.
+4. The invoice **fingerprint** is unique platform-wide: for Phase 2 it is the **canonical 32-byte hash the signature verified** (whatever encoding tag 6 used — raw, Base64, with or without padding — and without any of the unsigned QR text), so a genuine receipt can be claimed once, by one craftsman, and editing the QR does not produce a new claim. Phase 1 falls back to `VAT number | time | total` and is never auto-approved; a Phase 1 copy from a dealer whose till signs its invoices is suspicious in itself (+35). A rejected claim releases its fingerprint so a corrected resubmission is possible.
+5. Processing takes a **lease** on the invoice (5 minutes), so the upload, status polls and the sweep never run the pipeline on the same invoice at once, and a run acts on its decision only if its own status update applied.
 
-**What the signature does and does not prove.** It proves the invoice *identity* (its hash) was issued by a device holding that key, so invented invoices and replays are stopped. The amount fields in the QR (tags 4–5) are not covered by the signature on their own; amount integrity comes from the AI reading of the printed total, the declared amount, per-dealer amount profiles, and — in M3 — dealer-side confirmation through the partner portal.
+**What the signature does and does not prove.** It proves the invoice *identity* (its hash) was issued by a device holding that key, so invented invoices and replays are stopped. The seller VAT text, the time and the amounts in the QR (tags 2–5) are not covered by the signature — a client can rewrite them. So an invoice is **auto-approved only when the photo reading independently confirms the total and the issue date**; without an AI reading (no key configured, the API down, an unsupported image) every invoice goes to a person. Amount integrity further rests on the declared amount, per-dealer amount profiles and — in M3 — dealer-side confirmation through the partner portal.
 
 ### 3.2 AI extraction as a second witness
-When `ANTHROPIC_API_KEY` is set, Claude (model from `INVOICE_AI_MODEL`, default `claude-opus-5-5`, with server-side refusal fallbacks) reads the photo and returns schema-validated fields (seller, VAT number, invoice number, date, total, VAT, whether it looks like a real tax invoice, signs of editing). The pipeline compares it with the QR and with the amount the craftsman typed. Without a key, the QR path alone still works and anything without a QR goes to manual review.
+When `ANTHROPIC_API_KEY` is set, Claude (model from `INVOICE_AI_MODEL`, default `claude-opus-5-5`, with server-side refusal fallbacks) reads the photo and returns schema-validated fields (seller, VAT number, invoice number, date, total, VAT, whether it looks like a real tax invoice, signs of editing). The pipeline compares it with the QR (total, VAT number, and the issue date — a printed time without a zone is Riyadh time) and with the amount the craftsman typed. Without a key everything still works, but every invoice goes to manual review, since nothing independent confirms the unsigned QR amounts.
 
 ### 3.3 Risk scoring (0–100, explainable)
 `assessInvoice()` returns a score and the reasons, each a stable code shown to reviewers in Arabic and English:
@@ -125,15 +126,19 @@ When `ANTHROPIC_API_KEY` is set, Claude (model from `INVOICE_AI_MODEL`, default 
 | No QR on the invoice | +25 |
 | Seller not a partner dealer | +30 |
 | AI total vs QR total differ > 2 % · declared vs detected differ > 5 % | +35 · +15 |
+| AI date vs QR date differ > 36 h · issue date unknown · no AI reading | +30 · +10 · +5/+10 (none of them is auto-approved) |
+| Phase 1 QR from a dealer that issues signed invoices | +35 |
 | Invoice older than 30 days (rejected) · dated in the future | reject · +40 |
 | Amount above the cap or the dealer's typical range | +25 |
-| Velocity over the daily cap · account younger than 24 h | +20 · +10 |
+| Velocity over the daily cap (never auto-approved) · account younger than 24 h | +20 · +10 |
 | Device shared with other accounts | +30 |
 | AI suspects editing / not an invoice | +40 / +50 |
 
-≤ 20 with a valid signature from a known device key of an active partner dealer → **auto-approved** and points posted. A duplicate fingerprint is rejected outright. ≥ 60 → **flagged**. Otherwise → **manual review** in the console, where batches are approved in one click.
+≤ 20 with a valid signature from a known device key of an active partner dealer, **and** a photo reading that confirms the total and the date, under the daily cap → **auto-approved** and points posted. A duplicate fingerprint is rejected outright. ≥ 60 → **flagged**. Otherwise → **manual review** in the console, where batches are approved in one click.
 
-Referrals have their own assessment: same device as the referrer (+80), same IP /24 within 24 h (+30), more than 5 referrals in 24 h (+25), adjacent phone numbers (+15). Held referrals pay nothing until a reviewer clears them.
+**Four eyes.** Staff cannot approve or reject their own invoice, settle their own reward request, review their own documents or adjust their own balance, and staff accounts cannot onboard as craftsmen. A suspended account earns nothing: its invoices cannot be approved and a suspended referrer is not paid a referral bonus.
+
+Referrals have their own assessment: same device as the referrer (+80), same IP /24 within 24 h (+30), more than 5 referrals in 24 h (+25), adjacent phone numbers (+15). Held referrals pay nothing — neither the referrer's bonus nor the referee's welcome bonus — until a reviewer clears them; releasing one pays what was withheld.
 
 ### 3.4 Clustering
 `device_signals` record a random first-party device id (httpOnly cookie) and HMACs of the IP and its /24 prefix at sign-up, login, invoice and referral time. The console groups accounts that share a device or a prefix, so referral rings show up as clusters.

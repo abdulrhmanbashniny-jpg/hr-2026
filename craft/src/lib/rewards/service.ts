@@ -88,7 +88,14 @@ export async function myRedemptions(craftsmanId: string) {
   }));
 }
 
+/** Staff never settle their own reward requests. */
+async function assertNotOwn(redemptionId: string, actorId: string) {
+  const [row] = await db.select({ userId: craftsmen.userId }).from(redemptions).innerJoin(craftsmen, eq(craftsmen.id, redemptions.craftsmanId)).where(eq(redemptions.id, redemptionId));
+  if (row?.userId === actorId) throw new ApiError('self_review', 403);
+}
+
 export async function fulfillRedemption(id: string, actorId: string, voucherCode?: string | null, note?: string | null) {
+  await assertNotOwn(id, actorId);
   const [red] = await db
     .update(redemptions)
     .set({ status: 'fulfilled', voucherCodeEnc: voucherCode ? encryptSecret(voucherCode.trim()) : null, note: note ?? null, fulfilledBy: actorId, fulfilledAt: new Date() })
@@ -106,6 +113,7 @@ export async function fulfillRedemption(id: string, actorId: string, voucherCode
 }
 
 export async function rejectRedemption(id: string, actorId: string, note?: string | null) {
+  await assertNotOwn(id, actorId);
   const red = await db.transaction(async (tx) => {
     const [r] = await tx
       .update(redemptions)

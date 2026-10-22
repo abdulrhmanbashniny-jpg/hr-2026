@@ -97,14 +97,14 @@ export function TimeSeriesChart({ days, series, height = 220, area = true }: { d
             <g key={s.key}>
               {area && series.length === 1 && <path d={`${path(s.values)}L${x(s.values.length - 1)} ${y(0)}L${x(0)} ${y(0)}Z`} fill={s.color} opacity={0.1} />}
               <path d={path(s.values)} fill="none" stroke={s.color} strokeWidth={2} strokeLinejoin="round" strokeLinecap="round" />
-              <circle cx={x(s.values.length - 1)} cy={y(s.values[s.values.length - 1] ?? 0)} r={4} fill={s.color} stroke="var(--surface)" strokeWidth={2} />
+              <circle cx={x(s.values.length - 1)} cy={y(s.values[s.values.length - 1] ?? 0)} r={4} fill={s.color} stroke="var(--surface-container-lowest)" strokeWidth={2} />
             </g>
           ))}
           {hover !== null && (
             <g>
               <line x1={x(hover)} x2={x(hover)} y1={pad.top} y2={H - pad.bottom} stroke="var(--line-strong)" strokeWidth={1} />
               {series.map((s) => (
-                <circle key={s.key} cx={x(hover)} cy={y(s.values[hover] ?? 0)} r={4} fill={s.color} stroke="var(--surface)" strokeWidth={2} />
+                <circle key={s.key} cx={x(hover)} cy={y(s.values[hover] ?? 0)} r={4} fill={s.color} stroke="var(--surface-container-lowest)" strokeWidth={2} />
               ))}
             </g>
           )}
@@ -214,9 +214,9 @@ export function KsaMap({ cities, labelTop = 6 }: { cities: MapCity[]; labelTop?:
         {placed.map((p) => (
           <g key={p.id} tabIndex={0} onPointerEnter={() => setHover(p)} onPointerLeave={() => setHover(null)} onFocus={() => setHover(p)} onBlur={() => setHover(null)} className="cursor-pointer outline-none">
             <circle cx={p.x} cy={p.y} r={Math.max(p.r, 14)} fill="transparent" />
-            <circle cx={p.x} cy={p.y} r={p.r} fill={SEQ[Math.min(4, Math.floor(p.share * 5))]} fillOpacity={hover?.id === p.id ? 1 : 0.85} stroke="var(--surface)" strokeWidth={2} />
+            <circle cx={p.x} cy={p.y} r={p.r} fill={SEQ[Math.min(4, Math.floor(p.share * 5))]} fillOpacity={hover?.id === p.id ? 1 : 0.85} stroke="var(--surface-container-lowest)" strokeWidth={2} />
             {top.has(p.id) && (
-              <text x={p.x} y={p.y + p.r + 16} textAnchor="middle" fontSize={18} fontWeight={600} fill="var(--ink)" style={{ paintOrder: 'stroke', stroke: 'var(--surface)', strokeWidth: 4 }}>
+              <text x={p.x} y={p.y + p.r + 16} textAnchor="middle" fontSize={18} fontWeight={600} fill="var(--ink)" style={{ paintOrder: 'stroke', stroke: 'var(--surface-container-lowest)', strokeWidth: 4 }}>
                 {p.name}
               </text>
             )}

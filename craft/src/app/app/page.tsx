@@ -94,7 +94,7 @@ export default async function HomePage() {
 
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         {actions.map((a) => (
-          <Link key={a.href} href={a.href} className={`press lift flex flex-col items-start gap-3 rounded-2xl border p-4 ${a.accent ? 'amber-gradient border-transparent text-accent-ink' : 'border-line bg-surface text-ink'}`}>
+          <Link key={a.href} href={a.href} className={`press lift flex flex-col items-start gap-3 rounded-2xl border p-4 ${a.accent ? 'amber-gradient border-transparent text-accent-ink' : 'border-line bg-surface-container-lowest text-ink'}`}>
             <a.icon className="size-6" />
             <span className="text-sm font-semibold">{a.label}</span>
           </Link>

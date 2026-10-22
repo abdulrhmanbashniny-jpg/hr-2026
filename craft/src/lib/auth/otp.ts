@@ -27,9 +27,13 @@ export async function requestOtp(rawPhone: string, locale: 'ar' | 'en') {
   const phone = normalizeSaudiMobile(rawPhone);
   if (!phone) throw new ApiError('invalid_phone');
   const fp = await requestFingerprint();
+  // The strict per-number limits are counted per requester (network or device), so a stranger cannot
+  // use up the owner's allowance and lock them out; a looser ceiling per number still caps SMS cost.
+  const requester = fp.ipHash ?? fp.deviceId ?? 'anon';
   const allowed = await consume([
-    { key: `otp:phone:${phone}`, limit: 3, windowMs: 10 * MINUTE },
-    { key: `otp:phone-day:${phone}`, limit: 10, windowMs: 24 * HOUR },
+    { key: `otp:phone:${phone}:${requester}`, limit: 3, windowMs: 10 * MINUTE },
+    { key: `otp:phone-day:${phone}:${requester}`, limit: 10, windowMs: 24 * HOUR },
+    { key: `otp:phone-ceiling:${phone}`, limit: 30, windowMs: 24 * HOUR },
     ...(fp.ipHash ? [{ key: `otp:ip:${fp.ipHash}`, limit: 15, windowMs: HOUR }] : []),
   ]);
   if (!allowed) throw new ApiError('rate_limited');
@@ -40,7 +44,9 @@ export async function requestOtp(rawPhone: string, locale: 'ar' | 'en') {
   await db.update(otpChallenges).set({ codeHash: codeHash(challenge.id, code) }).where(eq(otpChallenges.id, challenge.id));
 
   // The code comes first so iOS and Android offer it for autofill.
-  const text = locale === 'ar' ? `${code} رمز الدخول إلى حِرفة. لا تشاركه مع أحد.\n@hirfa.sa #${code}` : `${code} is your Hirfa sign-in code. Don't share it.\n@hirfa.sa #${code}`;
+  // The last line is the WebOTP domain binding, so the browser only autofills on this site.
+  const origin = new URL(env.appUrl).hostname;
+  const text = locale === 'ar' ? `${code} رمز الدخول إلى منصة معلمي الدهانات. لا تشاركه مع أحد.\n@${origin} #${code}` : `${code} is your Paint Masters sign-in code. Don't share it.\n@${origin} #${code}`;
   const sent = await sendSms(phone, text);
   if (!sent.ok) throw new ApiError('sms_failed');
 

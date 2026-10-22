@@ -6,6 +6,6 @@ export function whatsappLink(phoneE164: string, text: string): string {
 
 export function inquiryMessage(locale: 'ar' | 'en', input: { name: string; code: string; profileUrl: string }): string {
   return locale === 'ar'
-    ? `السلام عليكم ${input.name}،\nوصلت لملفك عبر منصة حِرفة (رقم العضوية ${input.code}).\nأرغب بالاستفسار عن خدمات الدهان لمشروعي.\n${input.profileUrl}`
-    : `Hello ${input.name},\nI found your profile on Hirfa (member ${input.code}).\nI'd like to ask about painting work for my project.\n${input.profileUrl}`;
+    ? `السلام عليكم ${input.name}،\nوصلت لملفك عبر منصة معلمي الدهانات (رقم العضوية ${input.code}).\nأرغب بالاستفسار عن خدمات الدهان لمشروعي.\n${input.profileUrl}`
+    : `Hello ${input.name},\nI found your profile on Paint Masters (member ${input.code}).\nI'd like to ask about painting work for my project.\n${input.profileUrl}`;
 }

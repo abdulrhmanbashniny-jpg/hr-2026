@@ -50,18 +50,18 @@ export function Estimator({ code }: { code: string }) {
   }
 
   return (
-    <div className="surface overflow-hidden">
-      <div className="flex items-center gap-3 border-b border-line p-5">
-        <div className="grid size-10 place-items-center rounded-xl bg-accent-soft text-accent">
+    <div className="h-full overflow-hidden rounded-2xl bg-surface-container-lowest shadow-sm">
+      <div className="flex items-center gap-space-sm border-b border-line p-space-md sm:px-space-lg">
+        <div className="grid size-10 shrink-0 place-items-center rounded-xl bg-secondary-fixed/40 text-secondary">
           <Calculator className="size-5" />
         </div>
-        <div>
-          <h3 className="font-semibold">{t.estimator.title}</h3>
-          <p className="text-sm text-muted">{t.estimator.subtitle}</p>
+        <div className="min-w-0">
+          <h3 className="text-headline-sm text-primary">{t.estimator.title}</h3>
+          <p className="text-body-sm text-on-surface-variant">{t.estimator.subtitle}</p>
         </div>
       </div>
-      <div className="grid gap-6 p-5 md:grid-cols-[1.2fr_1fr]">
-        <div className="space-y-4">
+      <div className="grid gap-space-lg p-space-md sm:p-space-lg md:grid-cols-[1.2fr_1fr]">
+        <div className="min-w-0 space-y-space-md">
           <Segmented
             value={mode}
             onChange={setMode}
@@ -71,7 +71,7 @@ export function Estimator({ code }: { code: string }) {
             ]}
           />
           {mode === 'room' ? (
-            <div className="grid grid-cols-3 gap-3">
+            <div className="grid grid-cols-3 gap-space-sm">
               {(['length', 'width', 'height'] as const).map((k) => (
                 <Field key={k} label={t.estimator[k]}>
                   <Input inputMode="decimal" className="num" value={room[k]} onChange={(e) => setRoom((r) => ({ ...r, [k]: e.target.value }))} />
@@ -83,7 +83,7 @@ export function Estimator({ code }: { code: string }) {
               <Input inputMode="decimal" className="num" value={area} onChange={(e) => setArea(e.target.value)} />
             </Field>
           )}
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-2 gap-space-sm">
             <Field label={t.estimator.openings}>
               <Input inputMode="decimal" className="num" value={openings} onChange={(e) => setOpenings(e.target.value)} />
             </Field>
@@ -109,22 +109,22 @@ export function Estimator({ code }: { code: string }) {
           {mode === 'room' && <Switch checked={ceiling} onChange={setCeiling} label={t.estimator.ceiling} />}
           <Switch checked={primer} onChange={setPrimer} label={t.estimator.primer} />
         </div>
-        <div className="flex flex-col justify-between gap-4 rounded-2xl bg-navy-900 p-5 text-white">
+        <div className="vip-surface relative flex flex-col justify-between gap-space-md overflow-hidden rounded-2xl p-space-lg text-white">
           <div>
-            <div className="text-sm text-white/70">{t.estimator.result}</div>
+            <div className="text-label-md text-primary-fixed-dim">{t.estimator.result}</div>
             <div className="mt-1 flex items-baseline gap-2">
-              <span className="num text-5xl font-semibold text-accent-2">{fmtNumber(est.liters, 1)}</span>
-              <span className="text-white/70">{t.estimator.liters}</span>
+              <span className="num text-[44px] leading-none font-bold text-secondary-fixed-dim">{fmtNumber(est.liters, 1)}</span>
+              <span className="text-body-md text-primary-fixed-dim">{t.estimator.liters}</span>
             </div>
-            <div className="mt-4 space-y-2 text-sm">
+            <div className="mt-space-md space-y-2 text-body-md">
               <div className="flex items-center justify-between gap-2 border-b border-white/10 pb-2">
-                <span className="text-white/70">{t.estimator.paintable}</span>
+                <span className="text-primary-fixed-dim">{t.estimator.paintable}</span>
                 <span className="num">{fmtNumber(est.paintableSqm, 1)} m²</span>
               </div>
               {est.buckets.big > 0 && (
                 <div className="flex items-center justify-between gap-2">
                   <span className="flex items-center gap-1.5">
-                    <PaintBucket className="size-4 text-accent-2" />
+                    <PaintBucket className="size-4 text-secondary-fixed-dim" />
                     {t.estimator.big}
                   </span>
                   <span className="num">× {est.buckets.big}</span>
@@ -133,7 +133,7 @@ export function Estimator({ code }: { code: string }) {
               {est.buckets.small > 0 && (
                 <div className="flex items-center justify-between gap-2">
                   <span className="flex items-center gap-1.5">
-                    <PaintBucket className="size-3.5 text-accent-2" />
+                    <PaintBucket className="size-3.5 text-secondary-fixed-dim" />
                     {t.estimator.small}
                   </span>
                   <span className="num">× {est.buckets.small}</span>
@@ -153,7 +153,7 @@ export function Estimator({ code }: { code: string }) {
             <Button variant="whatsapp" className="w-full" loading={sending} onClick={send} icon={<WhatsAppIcon className="size-5" />} disabled={est.liters <= 0}>
               {t.estimator.send}
             </Button>
-            <p className="mt-2 text-xs leading-relaxed text-white/55">{t.estimator.disclaimer}</p>
+            <p className="mt-space-sm text-body-sm text-white/60">{t.estimator.disclaimer}</p>
           </div>
         </div>
       </div>

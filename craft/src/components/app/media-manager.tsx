@@ -104,7 +104,7 @@ export function MediaManager({ projectId, initial }: { projectId: string; initia
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
         <AnimatePresence initial={false}>
           {items.map((m) => (
-            <motion.div key={m.id} layout initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.9 }} className="overflow-hidden rounded-2xl border border-line bg-surface">
+            <motion.div key={m.id} layout initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.9 }} className="overflow-hidden rounded-2xl border border-line bg-surface-container-lowest">
               <div className="relative aspect-square bg-surface-2">
                 {(m.thumbUrl ?? m.posterUrl ?? m.url) && (
                   <img src={(m.kind === 'video' ? m.posterUrl : m.thumbUrl ?? m.url) ?? undefined} alt="" className="size-full object-cover" style={m.lqip ? { backgroundImage: `url(${m.lqip})`, backgroundSize: 'cover' } : undefined} />

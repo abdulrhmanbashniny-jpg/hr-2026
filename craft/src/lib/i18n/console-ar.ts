@@ -1,6 +1,11 @@
 export const consoleAr = {
   title: 'لوحة القيادة',
   nav: {
+    reviews: 'آراء العملاء',
+    products: 'منتجات المصنع',
+    portal: 'بوابة الإدارة',
+    search: 'ابحث عن فني بالاسم أو الرقم أو الجوال…',
+    signedInAs: 'دورك',
     overview: 'نظرة عامة',
     invoices: 'مراجعة الفواتير',
     craftsmen: 'الفنيون',

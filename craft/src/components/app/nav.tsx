@@ -49,7 +49,7 @@ export function Sidebar({ user }: { user: ShellUser }) {
   const router = useRouter();
   const nav = useNav();
   return (
-    <aside className="sticky top-0 hidden h-dvh w-64 shrink-0 flex-col border-e border-line bg-surface px-4 py-5 lg:flex">
+    <aside className="sticky top-0 hidden h-dvh w-64 shrink-0 flex-col border-e border-line bg-surface-container-lowest px-4 py-5 lg:flex">
       <Link href="/app" className="px-2">
         <Logo name={t.meta.product} />
       </Link>

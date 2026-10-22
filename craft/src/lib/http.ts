@@ -101,10 +101,24 @@ export function route<C = unknown>(handler: Handler<C>, opts: { csrf?: boolean }
   };
 }
 
+/**
+ * The caller's address. On Vercel the platform header is authoritative. Elsewhere, X-Forwarded-For
+ * is read from the right: each trusted proxy (TRUSTED_PROXY_HOPS, default 1) appends the address it
+ * saw, so the entries to the left of those are whatever the client chose to send.
+ */
 export async function clientIp(): Promise<string | null> {
   try {
     const h = await headers();
-    return h.get('x-forwarded-for')?.split(',')[0]?.trim() || h.get('x-real-ip') || null;
+    if (process.env.VERCEL) {
+      const v = h.get('x-vercel-forwarded-for')?.split(',')[0]?.trim();
+      if (v) return v;
+    }
+    const chain = (h.get('x-forwarded-for') ?? '')
+      .split(',')
+      .map((p) => p.trim())
+      .filter(Boolean);
+    const hops = Math.max(1, Number(process.env.TRUSTED_PROXY_HOPS ?? 1) || 1);
+    return chain[Math.max(0, chain.length - hops)] || h.get('x-real-ip') || null;
   } catch {
     return null;
   }

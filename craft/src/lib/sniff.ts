@@ -26,6 +26,7 @@ export const ALLOWED_BY_PURPOSE = {
   invoice: ['image/jpeg', 'image/png', 'image/webp', 'image/heic'],
   document: ['image/jpeg', 'image/png', 'image/webp', 'application/pdf'],
   avatar: ['image/jpeg', 'image/png', 'image/webp'],
+  product: ['image/jpeg', 'image/png', 'image/webp'],
 } as const satisfies Record<string, readonly SniffedType[]>;
 
 export type UploadPurpose = keyof typeof ALLOWED_BY_PURPOSE;

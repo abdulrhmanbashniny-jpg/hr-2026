@@ -19,5 +19,6 @@ export const ProjectBody = z.object({
   brandId: z.uuid().nullable().optional(),
   colors: z.array(ColorSchema).max(12).optional(),
   warrantyMonths: z.number().int().min(0).max(120).nullable().optional(),
+  productIds: z.array(z.uuid()).max(6).optional(),
   isPublished: z.boolean().optional(),
 });

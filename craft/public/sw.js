@@ -68,10 +68,10 @@ self.addEventListener('push', (event) => {
   try {
     payload = event.data ? event.data.json() : {};
   } catch {
-    payload = { title: 'Hirfa', body: event.data ? event.data.text() : '' };
+    payload = { title: 'منصة معلمي الدهانات', body: event.data ? event.data.text() : '' };
   }
   event.waitUntil(
-    self.registration.showNotification(payload.title || 'حِرفة', {
+    self.registration.showNotification(payload.title || 'منصة معلمي الدهانات', {
       body: payload.body || '',
       icon: '/icons/icon-192.png',
       badge: '/icons/icon-192.png',

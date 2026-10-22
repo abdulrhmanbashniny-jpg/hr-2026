@@ -37,7 +37,7 @@ export function Segmented<T extends string>({ value, onChange, options, size = '
             onClick={() => onChange(o.value)}
             className={cn('relative rounded-lg font-medium transition-colors', size === 'sm' ? 'px-3 py-1 text-xs' : 'px-4 py-1.5 text-sm', active ? 'text-ink' : 'text-muted hover:text-ink')}
           >
-            {active && <motion.span layoutId={`seg-${id}`} className="absolute inset-0 rounded-lg bg-surface shadow-sm" />}
+            {active && <motion.span layoutId={`seg-${id}`} className="absolute inset-0 rounded-lg bg-surface-container-lowest shadow-sm" />}
             <span className="relative">{o.label}</span>
           </button>
         );

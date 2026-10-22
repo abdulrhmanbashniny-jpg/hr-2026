@@ -9,14 +9,17 @@ import { cities, craftsmen, dealers, fraudFlags, incentiveRules, invoices, portf
 import { audit } from '@/lib/audit';
 import { apiStaff } from '@/lib/auth/guards';
 import type { StaffPermission } from '@/lib/auth/roles';
+import { removeAvatar } from '@/lib/craftsmen/avatar';
 import { invalidateProfile } from '@/lib/craftsmen/service';
 import { reviewDocument } from '@/lib/craftsmen/verification';
 import { ApiError } from '@/lib/http';
 import { isValidVatNumber } from '@/lib/ids';
 import { dictionary, getLocale } from '@/lib/i18n';
-import { approveInvoice, payReferralBonus, rejectInvoice } from '@/lib/invoices/pipeline';
+import { approveInvoice, payReferralBonus, payWelcomeBonus, rejectInvoice } from '@/lib/invoices/pipeline';
 import { notify } from '@/lib/notifications';
 import { postLedger } from '@/lib/points/ledger';
+import { BrandSettings, ProductInput, saveBrand, saveProduct, setProductActive } from '@/lib/products/service';
+import { moderateReview } from '@/lib/reviews/service';
 import { fulfillRedemption, rejectRedemption } from '@/lib/rewards/service';
 import { economicsSchema } from '@/lib/settings/economics';
 import { getEconomics, saveEconomics } from '@/lib/settings/store';
@@ -69,6 +72,9 @@ export async function adjustPointsAction(craftsmanId: string, delta: number, not
     const amount = z.number().int().min(-1_000_000).max(1_000_000).refine((v) => v !== 0).parse(delta);
     const reason = z.string().trim().min(3).max(300).parse(note);
     const id = uuid.parse(craftsmanId);
+    const [target] = await db.select({ userId: craftsmen.userId }).from(craftsmen).where(eq(craftsmen.id, id));
+    if (!target) throw new ApiError('not_found');
+    if (target.userId === actor) throw new ApiError('self_review', 403);
     await db.transaction(async (tx) => {
       const res = await postLedger(tx, { craftsmanId: id, delta: amount, kind: 'adjustment', idempotencyKey: `adjust:${id}:${crypto.randomUUID()}`, note: reason, createdBy: actor });
       await audit(actor, 'points.adjust', { type: 'craftsman', id }, { delta: amount, note: reason, balanceAfter: res.balanceAfter }, tx);
@@ -138,17 +144,29 @@ export async function resolveFlagAction(flagId: string, outcome: 'dismissed' | '
 export async function releaseReferralAction(referralId: string) {
   return run('fraud:manage', async (actor) => {
     const eco = await getEconomics();
+    const id = uuid.parse(referralId);
     const payouts = await db.transaction(async (tx) => {
-      const [r] = await tx.select().from(referrals).where(and(eq(referrals.id, uuid.parse(referralId)), eq(referrals.status, 'held'))).for('update');
+      const [peek] = await tx.select({ refereeId: referrals.refereeId }).from(referrals).where(eq(referrals.id, id));
+      if (!peek) throw new ApiError('invalid_state');
+      // Same lock order as invoice approval (craftsman, then referral), so the two never interleave.
+      const [referee] = await tx
+        .select({ c: craftsmen, region: cities.regionCode })
+        .from(craftsmen)
+        .innerJoin(cities, eq(cities.id, craftsmen.cityId))
+        .where(eq(craftsmen.id, peek.refereeId))
+        .for('update', { of: craftsmen });
+      const [r] = await tx.select().from(referrals).where(and(eq(referrals.id, id), eq(referrals.status, 'held'))).for('update');
       if (!r) throw new ApiError('invalid_state');
-      const [referee] = await tx.select({ c: craftsmen, region: cities.regionCode }).from(craftsmen).innerJoin(cities, eq(cities.id, craftsmen.cityId)).where(eq(craftsmen.id, r.refereeId));
       const activated = !!referee.c.activatedAt;
       await tx.update(referrals).set({ status: activated ? 'activated' : 'pending', activatedAt: activated ? new Date() : null, reviewedBy: actor }).where(eq(referrals.id, r.id));
       await tx.update(fraudFlags).set({ status: 'dismissed', resolvedBy: actor, resolvedAt: new Date() }).where(and(eq(fraudFlags.subjectId, r.id), eq(fraudFlags.status, 'open')));
       await audit(actor, 'referral.release', { type: 'referral', id: r.id }, undefined, tx);
-      return activated ? await payReferralBonus(tx, r.id, r.referrerId, referee.c, referee.region, eco) : null;
+      if (!activated) return [];
+      // The referee was activated while the referral was held: both bonuses were withheld until now.
+      const out = [await payWelcomeBonus(tx, referee.c.id, referee.c.userId, eco), await payReferralBonus(tx, r.id, r.referrerId, referee.c, referee.region, eco)];
+      return out.filter((p) => p !== null);
     });
-    if (payouts) await notify(payouts.userId, payouts.kind, payouts.vars, '/app/referrals');
+    for (const p of payouts) await notify(p.userId, p.kind, p.vars, p.kind === 'referral_bonus' ? '/app/referrals' : '/app');
   });
 }
 
@@ -265,4 +283,54 @@ export async function saveEconomicsAction(input: unknown) {
     await saveEconomics(value, actor);
     await audit(actor, 'settings.economics', { type: 'settings', id: 'economics' }, value);
   });
+}
+
+// ───────────── Card photo, reviews, factory catalogue ─────────────
+
+export async function removeCraftsmanPhotoAction(craftsmanId: string, reason: string) {
+  return run(
+    'craftsmen:manage',
+    async (actor) => {
+      const res = await removeAvatar(z.uuid().parse(craftsmanId));
+      if (res.removed) await audit(actor, 'craftsman.photo_remove', { type: 'craftsman', id: craftsmanId }, { reason: reason.slice(0, 300) });
+    },
+    ['/admin/craftsmen'],
+  );
+}
+
+export async function moderateReviewAction(reviewId: string, approve: boolean) {
+  return run('reviews:moderate', (actor) => moderateReview(actor, z.uuid().parse(reviewId), approve), ['/admin/reviews']);
+}
+
+export async function saveProductAction(input: z.input<typeof ProductInput>) {
+  return run(
+    'products:manage',
+    async (actor) => {
+      const id = await saveProduct(actor, ProductInput.parse(input));
+      await audit(actor, 'product.save', { type: 'product', id });
+    },
+    ['/admin/products', '/'],
+  );
+}
+
+export async function toggleProductAction(id: string, active: boolean) {
+  return run(
+    'products:manage',
+    async (actor) => {
+      await setProductActive(z.uuid().parse(id), active);
+      await audit(actor, active ? 'product.activate' : 'product.deactivate', { type: 'product', id });
+    },
+    ['/admin/products', '/'],
+  );
+}
+
+export async function saveBrandAction(input: z.input<typeof BrandSettings>) {
+  return run(
+    'products:manage',
+    async (actor) => {
+      await saveBrand(BrandSettings.parse(input), actor);
+      await audit(actor, 'brand.save');
+    },
+    ['/admin/products', '/'],
+  );
 }

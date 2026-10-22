@@ -2,13 +2,13 @@ import type { InputHTMLAttributes, ReactNode, SelectHTMLAttributes, TextareaHTML
 import { cn } from '@/lib/cn';
 
 const control =
-  'w-full rounded-xl border border-line bg-surface px-3.5 text-[15px] text-ink placeholder:text-faint shadow-sm transition outline-none focus:border-accent focus:ring-4 focus:ring-[var(--ring)] disabled:opacity-60 aria-[invalid=true]:border-danger';
+  'w-full rounded-xl border border-line bg-surface-container-lowest px-4 text-body-md text-[#0F172A] placeholder:text-muted transition outline-none focus:border-accent-2 focus:ring-[3px] focus:ring-[var(--ring)] disabled:opacity-60 aria-[invalid=true]:border-[#EF4444] aria-[invalid=true]:ring-[3px] aria-[invalid=true]:ring-[rgb(239_68_68/0.2)]';
 
 export function Field({ label, hint, error, children, className, htmlFor }: { label?: ReactNode; hint?: ReactNode; error?: ReactNode; children: ReactNode; className?: string; htmlFor?: string }) {
   return (
     <div className={cn('flex flex-col gap-1.5', className)}>
       {label && (
-        <label htmlFor={htmlFor} className="text-sm font-medium text-ink">
+        <label htmlFor={htmlFor} className="text-label-md font-semibold text-primary-container">
           {label}
         </label>
       )}
@@ -19,7 +19,7 @@ export function Field({ label, hint, error, children, className, htmlFor }: { la
 }
 
 export function Input({ className, ...props }: InputHTMLAttributes<HTMLInputElement>) {
-  return <input {...props} className={cn(control, 'h-11', className)} />;
+  return <input {...props} className={cn(control, 'h-12', className)} />;
 }
 
 export function Textarea({ className, ...props }: TextareaHTMLAttributes<HTMLTextAreaElement>) {
@@ -28,7 +28,7 @@ export function Textarea({ className, ...props }: TextareaHTMLAttributes<HTMLTex
 
 export function Select({ className, children, ...props }: SelectHTMLAttributes<HTMLSelectElement>) {
   return (
-    <select {...props} className={cn(control, 'h-11 appearance-none bg-[length:16px] bg-no-repeat pe-9 [background-position:left_12px_center] rtl:[background-position:left_12px_center] ltr:[background-position:right_12px_center]', className)} style={{ backgroundImage: "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23627d98' stroke-width='2'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E\")" }}>
+    <select {...props} className={cn(control, 'h-12 appearance-none bg-[length:16px] bg-no-repeat pe-9 [background-position:left_12px_center] rtl:[background-position:left_12px_center] ltr:[background-position:right_12px_center]', className)} style={{ backgroundImage: "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23627d98' stroke-width='2'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E\")" }}>
       {children}
     </select>
   );
@@ -37,7 +37,7 @@ export function Select({ className, children, ...props }: SelectHTMLAttributes<H
 export function Checkbox({ label, className, ...props }: InputHTMLAttributes<HTMLInputElement> & { label: ReactNode }) {
   return (
     <label className={cn('flex cursor-pointer items-start gap-3 text-sm leading-relaxed text-ink-2', className)}>
-      <input type="checkbox" {...props} className="mt-0.5 size-5 shrink-0 cursor-pointer rounded-md border-line accent-[#f59e0b]" />
+      <input type="checkbox" {...props} className="mt-0.5 size-5 shrink-0 cursor-pointer rounded-md border-line accent-[#102a43]" />
       <span>{label}</span>
     </label>
   );

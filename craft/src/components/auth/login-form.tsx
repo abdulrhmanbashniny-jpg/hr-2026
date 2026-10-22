@@ -73,7 +73,7 @@ export function LoginForm({ next }: { next?: string }) {
       {!challenge ? (
         <motion.form key="phone" onSubmit={send} initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="space-y-5">
           <Field label={t.auth.phone} error={error} htmlFor="phone">
-            <div className="flex h-12 items-center overflow-hidden rounded-xl border border-line bg-surface shadow-sm focus-within:border-accent focus-within:ring-4 focus-within:ring-[var(--ring)]" dir="ltr">
+            <div className="flex h-12 items-center overflow-hidden rounded-xl border border-line bg-surface-container-lowest shadow-sm focus-within:border-accent focus-within:ring-4 focus-within:ring-[var(--ring)]" dir="ltr">
               <span className="num flex h-full items-center gap-1.5 border-e border-line bg-surface-2 px-3 text-sm text-muted">🇸🇦 +966</span>
               <input
                 id="phone"

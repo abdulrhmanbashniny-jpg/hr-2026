@@ -56,27 +56,23 @@ export const TRADES = [
   { id: 'industrial', nameAr: 'دهانات صناعية', nameEn: 'Industrial coatings' },
 ].map((t, i) => ({ ...t, sortOrder: i }));
 
-/** Fictional brands and dealers, so the demo never implies a partnership with a real company. */
-export const BRANDS = [
-  { key: 'sahara', name: 'Sahara Coatings', nameAr: 'دهانات الصحراء' },
-  { key: 'najd', name: 'Najd Paints', nameAr: 'ألوان نجد' },
-  { key: 'gulfpro', name: 'Gulf Pro Coatings', nameAr: 'الخليج برو' },
-  { key: 'redsea', name: 'Red Sea Paints', nameAr: 'دهانات البحر الأحمر' },
-];
+/** The factory behind the platform (a placeholder name until the real brand is configured in the console). */
+export const BRANDS = [{ key: 'factory', name: 'The Paint Factory', nameAr: 'مصنع الدهانات' }];
 
+/** Independent paint shops that sell the factory's products. Fictional names. */
 export const DEALERS = [
-  { key: 'd1', brand: 'sahara', name: 'معرض الصحراء للدهانات — الملقا', vat: '310000000100003', cityId: 'riyadh', signed: true },
-  { key: 'd2', brand: 'najd', name: 'مركز ألوان نجد — السويدي', vat: '310000000200003', cityId: 'riyadh', signed: true },
-  { key: 'd3', brand: 'gulfpro', name: 'الخليج برو — الخبر', vat: '310000000300003', cityId: 'khobar', signed: true },
-  { key: 'd4', brand: 'redsea', name: 'البحر الأحمر للدهانات — الروضة', vat: '310000000400003', cityId: 'jeddah', signed: false },
-  { key: 'd5', brand: 'sahara', name: 'الصحراء — بريدة', vat: '310000000500003', cityId: 'buraidah', signed: false },
-  { key: 'd6', brand: 'najd', name: 'ألوان نجد — أبها', vat: '310000000600003', cityId: 'abha', signed: false },
+  { key: 'd1', brand: 'factory', name: 'معرض الصحراء للدهانات — الملقا', vat: '310000000100003', cityId: 'riyadh', signed: true },
+  { key: 'd2', brand: 'factory', name: 'مركز ألوان نجد — السويدي', vat: '310000000200003', cityId: 'riyadh', signed: true },
+  { key: 'd3', brand: 'factory', name: 'الخليج برو — الخبر', vat: '310000000300003', cityId: 'khobar', signed: true },
+  { key: 'd4', brand: 'factory', name: 'البحر الأحمر للدهانات — الروضة', vat: '310000000400003', cityId: 'jeddah', signed: false },
+  { key: 'd5', brand: 'factory', name: 'الصحراء — بريدة', vat: '310000000500003', cityId: 'buraidah', signed: false },
+  { key: 'd6', brand: 'factory', name: 'ألوان نجد — أبها', vat: '310000000600003', cityId: 'abha', signed: false },
 ];
 
 export const REWARDS = [
   { kind: 'fuel_voucher', titleAr: 'قسيمة وقود رقمية 50 ريال', titleEn: 'Digital fuel voucher, SAR 50', partnerName: 'شبكة محطات شريكة', pointsCost: 2000, valueSar: 50, accent: '#F59E0B' },
   { kind: 'fuel_voucher', titleAr: 'قسيمة وقود رقمية 100 ريال', titleEn: 'Digital fuel voucher, SAR 100', partnerName: 'شبكة محطات شريكة', pointsCost: 3800, valueSar: 100, accent: '#F59E0B' },
-  { kind: 'supplier_discount', titleAr: 'خصم 15٪ على الدهانات لدى الموردين المعتمدين', titleEn: '15% off paint at partner dealers', partnerName: 'الموردون المعتمدون', pointsCost: 1200, valueSar: null, accent: '#102A43' },
+  { kind: 'supplier_discount', titleAr: 'خصم 15٪ على منتجات المصنع لدى الموزعين', titleEn: '15% off the factory’s paints at partner dealers', partnerName: 'الموردون المعتمدون', pointsCost: 1200, valueSar: null, accent: '#102A43' },
   { kind: 'tool', titleAr: 'طقم رولات احترافي (6 قطع)', titleEn: 'Professional roller kit (6 pieces)', partnerName: null, pointsCost: 3000, valueSar: 90, accent: '#486581', stock: 40 },
   { kind: 'tool', titleAr: 'رشاش دهان كهربائي', titleEn: 'Electric paint sprayer', partnerName: null, pointsCost: 9000, valueSar: 260, accent: '#486581', stock: 12, minTier: 'B' },
   { kind: 'tool', titleAr: 'عدة سلامة كاملة (كمامة، نظارة، قفازات)', titleEn: 'Full safety kit (respirator, goggles, gloves)', partnerName: null, pointsCost: 1500, valueSar: 45, accent: '#486581', stock: 80 },
@@ -96,4 +92,27 @@ export const PROJECTS = [
   { scene: 'facade', title: 'واجهة فيلا — دهان خارجي مقاوم للعوامل', description: 'غسيل الواجهة ومعالجة الرطوبة ثم دهان خارجي مقاوم للأشعة فوق البنفسجية.', area: 610, district: 'العارض', colors: [{ name: 'كريمي', code: 'RS-7001', hex: '#EFE3C8' }, { name: 'ذهبي ترابي', code: 'RS-7104', hex: '#C69C54' }] },
   { scene: 'kitchen', title: 'مطبخ مفتوح — دهان قابل للغسل', description: 'دهان مقاوم للبقع والرطوبة مع تجديد دهان الخزائن الخشبية.', area: 48, district: 'الروضة', colors: [{ name: 'عاجي', code: 'SC-1002', hex: '#E9E2D0' }] },
   { scene: 'office', title: 'مكتب إداري — دهان هادئ للأعمال', description: 'دهان بلون أزرق رمادي هادئ في مساحات العمل مع جدول تنفيذ ليلي دون إيقاف العمل.', area: 280, district: 'العليا', colors: [{ name: 'أزرق رمادي', code: 'NJ-4410', hex: '#CBD8E6' }] },
+] as const;
+
+/** The factory's catalogue (illustrated packshots in scripts/seed-media/products). */
+export const FACTORY_PRODUCTS = [
+  { file: 'interior-matt', nameAr: 'دهان داخلي مطفي فاخر', nameEn: 'Premium interior matt', category: 'interior', descriptionAr: 'تغطية عالية ولمسة مخملية ناعمة، منخفض الرائحة ومناسب لغرف النوم والمجالس.', descriptionEn: 'High hiding power and a soft velvet touch. Low odour, ideal for bedrooms and majlis.', finishAr: 'مطفي', finishEn: 'Matt', coverage: 12, sizes: ['18 L', '3.6 L'], swatch: '#E9DDC9', featured: true },
+  { file: 'interior-silk', nameAr: 'دهان داخلي حريري قابل للغسيل', nameEn: 'Washable interior silk', category: 'interior', descriptionAr: 'سطح حريري مقاوم للبقع يتحمل الغسيل المتكرر، للمطابخ والممرات.', descriptionEn: 'Stain-resistant silk finish that stands up to scrubbing, for kitchens and corridors.', finishAr: 'نصف لامع', finishEn: 'Silk', coverage: 11, sizes: ['18 L', '3.6 L'], swatch: '#C7D5E0', featured: true },
+  { file: 'exterior-acrylic', nameAr: 'دهان خارجي أكريليك مقاوم', nameEn: 'Exterior acrylic weathershield', category: 'exterior', descriptionAr: 'مقاوم للأشعة فوق البنفسجية والأتربة والرطوبة، يحافظ على اللون في صيف المملكة.', descriptionEn: 'Resists UV, dust and humidity, and keeps its colour through Saudi summers.', finishAr: 'مطفي', finishEn: 'Matt', coverage: 10, sizes: ['18 L'], swatch: '#D6BE9C', featured: true },
+  { file: 'exterior-thermal', nameAr: 'دهان خارجي عازل حراري', nameEn: 'Heat-reflective exterior', category: 'exterior', descriptionAr: 'يعكس أشعة الشمس ويخفض حرارة الجدران حتى 8 درجات.', descriptionEn: 'Reflects sunlight and lowers wall temperature by up to 8 °C.', finishAr: 'مطفي', finishEn: 'Matt', coverage: 9, sizes: ['18 L'], swatch: '#F3EEE5', featured: true },
+  { file: 'primer', nameAr: 'أساس مائي (برايمر)', nameEn: 'Water-based primer sealer', category: 'primer', descriptionAr: 'يثبت السطح ويحسن التصاق الطبقات النهائية ويقلل استهلاك الدهان.', descriptionEn: 'Seals the surface, improves adhesion of the top coats and reduces paint use.', finishAr: null, finishEn: null, coverage: 12, sizes: ['18 L'], swatch: '#FFFFFF', featured: false },
+  { file: 'waterproofing', nameAr: 'عازل مائي للأسطح', nameEn: 'Roof waterproofing membrane', category: 'waterproofing', descriptionAr: 'غشاء مرن يمنع تسرب المياه للأسطح والحمامات.', descriptionEn: 'A flexible membrane that stops leaks on roofs and in wet rooms.', finishAr: null, finishEn: null, coverage: 2, sizes: ['20 KG'], swatch: '#A9B1BC', featured: false },
+  { file: 'decorative-marble', nameAr: 'دهان ديكوري بتأثير الرخام', nameEn: 'Marble-effect decorative finish', category: 'decorative', descriptionAr: 'تأثير رخامي فاخر للمجالس والمداخل بلمسة لامعة.', descriptionEn: 'A rich marble effect with a soft sheen, for majlis and entrances.', finishAr: 'لامع', finishEn: 'Gloss', coverage: 8, sizes: ['5 L'], swatch: '#B9AA99', featured: true },
+  { file: 'enamel', nameAr: 'ورنيش ومينا للأخشاب والمعادن', nameEn: 'Wood & metal enamel', category: 'wood_metal', descriptionAr: 'حماية ولمعان طويل الأمد للأبواب والشبابيك والحديد.', descriptionEn: 'Long-lasting gloss and protection for doors, windows and steel.', finishAr: 'لامع', finishEn: 'Gloss', coverage: 14, sizes: ['3.6 L', '0.9 L'], swatch: '#8A3B1A', featured: false },
+] as const;
+
+export const REVIEWERS = ['م. فهد التميمي', 'أبو سعود الغامدي', 'عبدالعزيز الشمري', 'نورة القحطاني', 'خالد الدوسري', 'أم ريان', 'سلمان العنزي', 'د. هيفاء الزهراني', 'ماجد الحربي', 'عمر باوزير'];
+
+export const REVIEW_TEXTS = [
+  { rating: 5, project: 'فيلا سكنية', body: 'التزام تام بالمواعيد ونظافة بعد الانتهاء. اختار معنا الألوان بعناية والنتيجة فاقت توقعاتنا.' },
+  { rating: 5, project: 'صالة استقبال', body: 'شغل نظيف وحواف دقيقة، واستخدم دهانات المصنع الأصلية مع ضمان مكتوب. أنصح بالتعامل معه.' },
+  { rating: 4, project: 'شقة دوبلكس', body: 'تعامل راقٍ وسعر مناسب. تأخر يوماً واحداً عن الموعد لكنه عوّض بجودة التشطيب.' },
+  { rating: 5, project: 'واجهة خارجية', body: 'عالج الرطوبة والتشققات قبل الدهان، والواجهة صارت كأنها جديدة. فريق محترف.' },
+  { rating: 5, project: 'مجلس رجال', body: 'دهان ديكوري رائع بلمسة رخامية، والضيوف يسألون عنه دائماً.' },
+  { rating: 4, project: 'مطبخ', body: 'دهان قابل للغسيل كما وعد، وعمل بسرعة دون إزعاج.' },
 ] as const;

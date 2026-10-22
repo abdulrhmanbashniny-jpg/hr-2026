@@ -1,4 +1,4 @@
-import { and, count, eq, gt, lt } from 'drizzle-orm';
+import { and, count, eq, gt, lt, sql } from 'drizzle-orm';
 import { db } from '@/db';
 import { rateLimitHits } from '@/db/schema';
 import { sha256 } from '@/lib/crypto';
@@ -18,15 +18,37 @@ export async function isLimited(key: string, limit: number, windowMs: number): P
 export async function recordHit(...keys: string[]): Promise<void> {
   if (!keys.length) return;
   await db.insert(rateLimitHits).values(keys.map((k) => ({ key: sha256(k) })));
-  // Occasional clean-up of hits older than a day.
-  if (Math.random() < 0.02) await db.delete(rateLimitHits).where(lt(rateLimitHits.createdAt, new Date(Date.now() - 86_400_000)));
+  await prune();
 }
 
-/** Records a hit and reports whether the caller is now over any of the limits. */
+/** Occasional clean-up of hits older than the longest window in use (30 days, for reviews). */
+async function prune() {
+  if (Math.random() < 0.02) await db.delete(rateLimitHits).where(lt(rateLimitHits.createdAt, new Date(Date.now() - 31 * 86_400_000)));
+}
+
+/**
+ * Checks every limit and records the hit atomically: the keys are locked for the duration of the
+ * transaction, so a burst of parallel requests is counted one by one instead of all reading the
+ * count from before any of them was recorded.
+ */
 export async function consume(rules: { key: string; limit: number; windowMs: number }[]): Promise<boolean> {
-  for (const r of rules) if (await isLimited(r.key, r.limit, r.windowMs)) return false;
-  await recordHit(...rules.map((r) => r.key));
-  return true;
+  if (!rules.length) return true;
+  const hashed = rules.map((r) => ({ ...r, hash: sha256(r.key) }));
+  const ok = await db.transaction(async (tx) => {
+    // Sorted, so two requests sharing keys always lock them in the same order.
+    for (const h of [...new Set(hashed.map((r) => r.hash))].sort()) await tx.execute(sql`select pg_advisory_xact_lock(hashtextextended(${h}, 0))`);
+    for (const r of hashed) {
+      const [{ n }] = await tx
+        .select({ n: count() })
+        .from(rateLimitHits)
+        .where(and(eq(rateLimitHits.key, r.hash), gt(rateLimitHits.createdAt, new Date(Date.now() - r.windowMs))));
+      if (n >= r.limit) return false;
+    }
+    await tx.insert(rateLimitHits).values(hashed.map((r) => ({ key: r.hash })));
+    return true;
+  });
+  if (ok) await prune();
+  return ok;
 }
 
 export const MINUTE = 60_000;

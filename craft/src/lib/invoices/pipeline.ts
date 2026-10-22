@@ -1,4 +1,4 @@
-import { and, count, eq, gte, inArray, lt, ne, sql } from 'drizzle-orm';
+import { and, count, eq, gte, inArray, isNull, lt, ne, or, sql } from 'drizzle-orm';
 import { db, type Tx } from '@/db';
 import { isUniqueViolation } from '@/db/errors';
 import { cities, craftsmen, dealerKeys, dealers, fraudFlags, incentiveRules, invoices, referrals, users } from '@/db/schema';
@@ -14,7 +14,7 @@ import { getEconomics } from '@/lib/settings/store';
 import { otherAccountsOnDevice, recordSignal, type RequestFingerprint } from '@/lib/signals';
 import { storage } from '@/lib/storage';
 import { claimUpload } from '@/lib/uploads';
-import { decodeZatcaQr, invoiceFingerprint, verifyZatcaSignature } from '@/lib/zatca/qr';
+import { decodeZatcaQr, invoiceFingerprint, parseTimestamp, verifyZatcaSignature } from '@/lib/zatca/qr';
 import { extractInvoice, aiConfigured } from './ai';
 
 export interface SubmitInvoiceInput {
@@ -67,13 +67,22 @@ async function regionOf(tx: Tx | typeof db, cityId: string | null): Promise<stri
   return c?.region ?? null;
 }
 
+/** How long one run may hold an invoice: the AI reading can take up to three minutes with retries. */
+const PROCESSING_LEASE_MS = 5 * 60_000;
+
 /**
- * Reads the QR code and the photo, scores the risk and decides. Safe to run more than once: it only
- * acts on invoices still in `processing`.
+ * Reads the QR code and the photo, scores the risk and decides. Safe to call more than once: a run
+ * first takes a lease on the invoice, so overlapping calls (the upload, status polls, the sweep)
+ * never process it in parallel, and the decision is only acted on if this run's update applied.
  */
 export async function processInvoice(invoiceId: string): Promise<void> {
-  const [inv] = await db.select().from(invoices).where(eq(invoices.id, invoiceId));
-  if (!inv || inv.status !== 'processing') return;
+  const now = new Date();
+  const [inv] = await db
+    .update(invoices)
+    .set({ processingLeaseUntil: new Date(now.getTime() + PROCESSING_LEASE_MS) })
+    .where(and(eq(invoices.id, invoiceId), eq(invoices.status, 'processing'), or(isNull(invoices.processingLeaseUntil), lt(invoices.processingLeaseUntil, now))))
+    .returning();
+  if (!inv) return;
   try {
     const eco = await getEconomics();
     const [owner] = await db
@@ -97,16 +106,18 @@ export async function processInvoice(invoiceId: string): Promise<void> {
     // 3. Dealer and key
     const vat = qr?.vatNumber ?? extraction?.sellerVat ?? null;
     const [dealer] = vat ? await db.select().from(dealers).where(eq(dealers.vatNumber, vat)) : [];
+    const dealerKeyRows = dealer ? await db.select({ publicKey: dealerKeys.publicKey }).from(dealerKeys).where(eq(dealerKeys.dealerId, dealer.id)) : [];
     let keyKnown: boolean | null = null;
-    if (sig?.verdict === 'valid' && sig.publicKeyB64) {
-      keyKnown = dealer ? !!(await db.select({ id: dealerKeys.id }).from(dealerKeys).where(and(eq(dealerKeys.dealerId, dealer.id), eq(dealerKeys.publicKey, sig.publicKeyB64))))[0] : false;
-    }
+    if (sig?.verdict === 'valid' && sig.publicKeyB64) keyKnown = dealerKeyRows.some((k) => k.publicKey === sig.publicKeyB64);
 
     // 4. Facts the decision is based on
     const total = qr?.total ?? extraction?.total ?? inv.declaredAmount ?? null;
     const vatAmount = qr?.vat ?? extraction?.vat ?? null;
-    const issuedIso = qr?.timestamp ?? extraction?.issuedAt ?? null;
-    const issuedAt = issuedIso && !Number.isNaN(new Date(issuedIso).getTime()) ? new Date(issuedIso) : null;
+    const toDate = (iso: string | null | undefined) => (iso && !Number.isNaN(new Date(iso).getTime()) ? new Date(iso) : null);
+    const qrIssuedAt = toDate(qr?.timestamp);
+    // The model reads the printed time, which is Riyadh time when no zone is printed.
+    const aiIssuedAt = toDate(extraction?.issuedAt ? parseTimestamp(extraction.issuedAt) : null);
+    const issuedAt = qrIssuedAt ?? aiIssuedAt;
 
     const dayStart = new Date(Date.now() - 24 * HOUR);
     const [{ today }] = await db
@@ -133,11 +144,13 @@ export async function processInvoice(invoiceId: string): Promise<void> {
           vatNumber: qr?.vatNumber ?? null,
           total: qr?.total ?? null,
         },
-        dealer: { found: !!dealer, active: !!dealer?.isActive },
+        dealer: { found: !!dealer, active: !!dealer?.isActive, hasKeys: dealerKeyRows.length > 0 },
         extraction,
         aiConfigured: aiConfigured(),
         declaredAmount: inv.declaredAmount,
         issuedAt,
+        qrIssuedAt,
+        aiIssuedAt,
         total,
         dealerP95,
         invoicesToday: today,
@@ -148,7 +161,7 @@ export async function processInvoice(invoiceId: string): Promise<void> {
     );
 
     // 5. One genuine invoice, one claim
-    const fingerprint = vat ? invoiceFingerprint({ vatNumber: vat, invoiceHash: qr?.invoiceHash, timestamp: issuedAt?.toISOString() ?? null, total }) : null;
+    const fingerprint = vat ? invoiceFingerprint({ vatNumber: vat, digest: sig?.verdict === 'valid' ? sig.digest : null, timestamp: issuedAt?.toISOString() ?? null, total }) : null;
     let decision = risk.decision;
     const reasons: RiskReason[] = [...risk.reasons];
     if (fingerprint) {
@@ -160,7 +173,7 @@ export async function processInvoice(invoiceId: string): Promise<void> {
     }
 
     const status = decision === 'reject' ? 'rejected' : decision === 'flag' ? 'flagged' : 'pending';
-    await db
+    const [applied] = await db
       .update(invoices)
       .set({
         status: decision === 'auto_approve' ? 'pending' : status,
@@ -175,12 +188,17 @@ export async function processInvoice(invoiceId: string): Promise<void> {
         totalAmount: total,
         vatAmount,
         extraction,
-        fingerprint: decision === 'reject' && reasons[0]?.code === 'duplicate_invoice' ? null : fingerprint,
+        // A rejected claim does not lock the receipt: only approved and open invoices hold their fingerprint.
+        fingerprint: decision === 'reject' ? null : fingerprint,
         riskScore: risk.score,
         riskReasons: reasons,
+        processingLeaseUntil: null,
         updatedAt: new Date(),
       })
-      .where(and(eq(invoices.id, inv.id), eq(invoices.status, 'processing')));
+      .where(and(eq(invoices.id, inv.id), eq(invoices.status, 'processing')))
+      .returning({ id: invoices.id });
+    // Another run (or a person) already moved this invoice on: its decision stands, not ours.
+    if (!applied) return;
 
     if (decision === 'flag') {
       await db.insert(fraudFlags).values({ subjectType: 'invoice', subjectId: inv.id, craftsmanId: inv.craftsmanId, rule: reasons[0]?.code ?? 'risk', score: risk.score, details: { reasons } });
@@ -244,7 +262,16 @@ export async function approveInvoice(invoiceId: string, actorId: string | null, 
     if (!['pending', 'flagged'].includes(inv.status)) throw new ApiError('invalid_state');
     if (!inv.totalAmount || inv.totalAmount <= 0) throw new ApiError('invalid_state');
 
-    const [me] = await tx.select({ c: craftsmen, userId: users.id, userStatus: users.status }).from(craftsmen).innerJoin(users, eq(users.id, craftsmen.userId)).where(eq(craftsmen.id, inv.craftsmanId));
+    // Lock the craftsman too: activation and a staff release of a held referral must not interleave.
+    const [me] = await tx
+      .select({ c: craftsmen, userId: users.id, userStatus: users.status })
+      .from(craftsmen)
+      .innerJoin(users, eq(users.id, craftsmen.userId))
+      .where(eq(craftsmen.id, inv.craftsmanId))
+      .for('update', { of: craftsmen });
+    // Four eyes: nobody approves their own purchase, and a suspended account earns nothing.
+    if (actorId && actorId === me.userId) throw new ApiError('self_review', 403);
+    if (me.userStatus !== 'active') throw new ApiError('account_suspended', 409);
     const regionCode = await regionOf(tx, me.c.cityId);
     const at = inv.issuedAt ?? inv.createdAt;
     const incentive = resolveIncentive(await activeRules(tx, 'invoice'), { target: 'invoice', cityId: me.c.cityId, regionCode, at }, eco.maxMultiplier);
@@ -274,13 +301,14 @@ export async function approveInvoice(invoiceId: string, actorId: string | null, 
     }
 
     // First approved invoice: the craftsman is activated, and their referrer earns the referral bonus.
+    // A held or rejected referral pays nothing — not even the welcome bonus — until staff clear it.
     if (!me.c.activatedAt) {
       await tx.update(craftsmen).set({ activatedAt: new Date() }).where(eq(craftsmen.id, me.c.id));
-      if (eco.welcomeBonus > 0 && me.c.referredById) {
-        await postLedger(tx, { craftsmanId: me.c.id, delta: eco.welcomeBonus, kind: 'welcome_bonus', idempotencyKey: `welcome:${me.c.id}`, refType: 'craftsman', refId: me.c.id });
-        payouts.push({ userId: me.userId, kind: 'welcome_bonus', vars: { points: eco.welcomeBonus } });
+      const [ref] = await tx.select().from(referrals).where(eq(referrals.refereeId, me.c.id)).for('update');
+      if (ref && (ref.status === 'pending' || ref.status === 'activated')) {
+        const welcome = await payWelcomeBonus(tx, me.c.id, me.userId, eco);
+        if (welcome) payouts.push(welcome);
       }
-      const [ref] = await tx.select().from(referrals).where(eq(referrals.refereeId, me.c.id));
       if (ref && ref.status === 'pending') {
         await tx.update(referrals).set({ status: 'activated', activatedAt: new Date() }).where(eq(referrals.id, ref.id));
         const payout = await payReferralBonus(tx, ref.id, ref.referrerId, me.c, regionCode, eco);
@@ -321,7 +349,17 @@ async function activeReferrerOf(tx: Tx, craftsmanId: string): Promise<{ craftsma
   return row ?? null;
 }
 
-/** Pays the referrer once the referee is activated. Used on first approval and when staff release a held referral. */
+/** The referee's welcome bonus, once. Paid on activation, or when staff release a held referral of an activated referee. */
+export async function payWelcomeBonus(tx: Tx, craftsmanId: string, userId: string, eco: Awaited<ReturnType<typeof getEconomics>>): Promise<Payout | null> {
+  if (eco.welcomeBonus <= 0) return null;
+  const res = await postLedger(tx, { craftsmanId, delta: eco.welcomeBonus, kind: 'welcome_bonus', idempotencyKey: `welcome:${craftsmanId}`, refType: 'craftsman', refId: craftsmanId });
+  return res.applied ? { userId, kind: 'welcome_bonus', vars: { points: eco.welcomeBonus } } : null;
+}
+
+/**
+ * Pays the referrer once the referee is activated. Used on first approval and when staff release a
+ * held referral. A suspended referrer is not paid; the referral stays activated without a bonus.
+ */
 export async function payReferralBonus(
   tx: Tx,
   referralId: string,
@@ -333,6 +371,8 @@ export async function payReferralBonus(
   const inc = resolveIncentive(await activeRules(tx, 'referral_bonus'), { target: 'referral_bonus', cityId: referee.cityId, regionCode, at: new Date() }, eco.maxMultiplier);
   const points = referralBonusPoints(eco, inc);
   if (points <= 0) return null;
+  const [referrer] = await tx.select({ status: users.status }).from(craftsmen).innerJoin(users, eq(users.id, craftsmen.userId)).where(eq(craftsmen.id, referrerId));
+  if (referrer?.status !== 'active') return null;
   const res = await postLedger(tx, { craftsmanId: referrerId, delta: points, kind: 'referral_bonus', idempotencyKey: `referral_bonus:${referralId}`, refType: 'referral', refId: referralId });
   if (!res.applied) return null;
   const [r] = await tx.select({ userId: craftsmen.userId }).from(craftsmen).where(eq(craftsmen.id, referrerId));
@@ -340,6 +380,8 @@ export async function payReferralBonus(
 }
 
 export async function rejectInvoice(invoiceId: string, actorId: string, note?: string) {
+  const [owner] = await db.select({ userId: craftsmen.userId }).from(invoices).innerJoin(craftsmen, eq(craftsmen.id, invoices.craftsmanId)).where(eq(invoices.id, invoiceId));
+  if (owner?.userId === actorId) throw new ApiError('self_review', 403);
   const [inv] = await db
     .update(invoices)
     .set({ status: 'rejected', reviewedBy: actorId, reviewedAt: new Date(), reviewNote: note ?? null, fingerprint: null, updatedAt: new Date() })

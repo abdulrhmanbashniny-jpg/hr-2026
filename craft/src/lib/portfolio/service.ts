@@ -1,12 +1,15 @@
-import { and, asc, count, desc, eq, inArray } from 'drizzle-orm';
+import { and, asc, count, desc, eq, inArray, sql } from 'drizzle-orm';
 import { db } from '@/db';
-import { portfolioMedia, portfolioProjects, type ColorUsed } from '@/db/schema';
+import { craftsmen, portfolioMedia, portfolioProjects, type ColorUsed } from '@/db/schema';
 import { invalidateProfile } from '@/lib/craftsmen/service';
 import { ApiError } from '@/lib/http';
 import { storage, mediaUrl } from '@/lib/storage';
 import { claimUpload } from '@/lib/uploads';
 
-export const MAX_MEDIA_PER_PROJECT = 5;
+/** Every craftsman shows up to three works. */
+export const MAX_WORKS = 3;
+/** Each work is one photo or video, plus an optional "before" photo for the comparison slider. */
+export const MAX_MEDIA_PER_PROJECT = 2;
 
 export interface ProjectInput {
   title: string;
@@ -18,6 +21,7 @@ export interface ProjectInput {
   brandId?: string | null;
   colors?: ColorUsed[];
   warrantyMonths?: number | null;
+  productIds?: string[];
   isPublished?: boolean;
 }
 
@@ -43,11 +47,17 @@ export async function getProject(craftsmanId: string, projectId: string) {
 }
 
 export async function createProject(craftsmanId: string, code: string, input: ProjectInput) {
-  const [{ n }] = await db.select({ n: count() }).from(portfolioProjects).where(eq(portfolioProjects.craftsmanId, craftsmanId));
-  const [p] = await db
-    .insert(portfolioProjects)
-    .values({ craftsmanId, ...input, colors: input.colors ?? [], sortOrder: n })
-    .returning();
+  const p = await db.transaction(async (tx) => {
+    // Lock the craftsman so two parallel requests cannot both slip under the limit.
+    await tx.select({ id: craftsmen.id }).from(craftsmen).where(eq(craftsmen.id, craftsmanId)).for('update');
+    const [{ n }] = await tx.select({ n: count() }).from(portfolioProjects).where(eq(portfolioProjects.craftsmanId, craftsmanId));
+    if (n >= MAX_WORKS) throw new ApiError('works_limit');
+    const [row] = await tx
+      .insert(portfolioProjects)
+      .values({ craftsmanId, ...input, colors: input.colors ?? [], productIds: input.productIds ?? [], sortOrder: n })
+      .returning();
+    return row;
+  });
   invalidateProfile(code);
   return p;
 }
@@ -89,12 +99,17 @@ export async function addMedia(userId: string, craftsmanId: string, code: string
   const row = await db.transaction(async (tx) => {
     // Lock the project row so two parallel uploads cannot both slip under the limit.
     await tx.select({ id: portfolioProjects.id }).from(portfolioProjects).where(eq(portfolioProjects.id, projectId)).for('update');
-    const [{ n }] = await tx.select({ n: count() }).from(portfolioMedia).where(eq(portfolioMedia.projectId, projectId));
+    const existing = await tx.select({ role: portfolioMedia.role }).from(portfolioMedia).where(eq(portfolioMedia.projectId, projectId));
+    const n = existing.length;
     if (n >= MAX_MEDIA_PER_PROJECT) throw new ApiError('media_limit');
+    // One main file (photo or video) and at most one "before" photo.
+    const wantsBefore = input.role === 'before';
+    if (existing.some((m) => (m.role === 'before') === wantsBefore)) throw new ApiError('media_limit');
     const file = await claimUpload(userId, input.uploadId, 'portfolio', tx);
     const thumb = input.thumbUploadId ? await claimUpload(userId, input.thumbUploadId, 'portfolio', tx) : null;
     const poster = input.posterUploadId ? await claimUpload(userId, input.posterUploadId, 'portfolio', tx) : null;
     const kind = file.mime.startsWith('video/') ? 'video' : 'image';
+    if (wantsBefore && kind !== 'image') throw new ApiError('upload_type');
     if (thumb && !thumb.mime.startsWith('image/')) throw new ApiError('upload_type');
     if (poster && !poster.mime.startsWith('image/')) throw new ApiError('upload_type');
     const [m] = await tx
@@ -113,7 +128,8 @@ export async function addMedia(userId: string, craftsmanId: string, code: string
         width: input.width ?? null,
         height: input.height ?? null,
         durationSec: kind === 'video' ? (input.durationSec ?? null) : null,
-        lqip: input.lqip && input.lqip.length < 4000 && input.lqip.startsWith('data:image/') ? input.lqip : null,
+        // Rendered inside a CSS url(): accept only a plain base64 image data URL, nothing that could close it.
+        lqip: input.lqip && input.lqip.length < 4000 && /^data:image\/(webp|png|jpeg);base64,[A-Za-z0-9+/]+=*$/.test(input.lqip) ? input.lqip : null,
         capturedAt: input.capturedAt ? new Date(input.capturedAt) : null,
         geoLat: input.geo?.lat ?? null,
         geoLng: input.geo?.lng ?? null,
@@ -134,7 +150,11 @@ export async function deleteMedia(craftsmanId: string, code: string, mediaId: st
 }
 
 export async function setMediaRole(craftsmanId: string, code: string, mediaId: string, role: 'before' | 'after' | 'gallery') {
-  const [m] = await db.update(portfolioMedia).set({ role }).where(and(eq(portfolioMedia.id, mediaId), eq(portfolioMedia.craftsmanId, craftsmanId))).returning({ id: portfolioMedia.id });
+  const [m] = await db.select().from(portfolioMedia).where(and(eq(portfolioMedia.id, mediaId), eq(portfolioMedia.craftsmanId, craftsmanId)));
   if (!m) throw new ApiError('not_found');
+  if (role === 'before' && m.kind !== 'image') throw new ApiError('upload_type');
+  const others = await db.select({ role: portfolioMedia.role }).from(portfolioMedia).where(and(eq(portfolioMedia.projectId, m.projectId), sql`${portfolioMedia.id} <> ${m.id}`));
+  if (others.some((o) => (o.role === 'before') === (role === 'before'))) throw new ApiError('media_limit');
+  await db.update(portfolioMedia).set({ role }).where(eq(portfolioMedia.id, m.id));
   invalidateProfile(code);
 }

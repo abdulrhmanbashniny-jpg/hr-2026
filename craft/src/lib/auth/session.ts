@@ -61,7 +61,7 @@ export async function destroySession() {
 export interface SessionContext {
   sessionId: string;
   user: { id: string; phone: string; name: string | null; role: UserRole; locale: string; suspended: boolean };
-  craftsman: { id: string; referralCode: string; displayName: string; tier: Tier; cityId: string; createdAt: Date } | null;
+  craftsman: { id: string; referralCode: string; displayName: string; tier: Tier; cityId: string; avatarKey: string | null; createdAt: Date } | null;
 }
 
 /** The signed-in user and their craftsman profile, if any. Memoised per request. */
@@ -75,7 +75,7 @@ export const getSession = cache(async (): Promise<SessionContext | null> => {
     .where(and(eq(sessions.id, sid), isNull(sessions.revokedAt), gt(sessions.expiresAt, new Date())));
   if (!row) return null;
   const [c] = await db
-    .select({ id: craftsmen.id, referralCode: craftsmen.referralCode, displayName: craftsmen.displayName, tier: craftsmen.tier, cityId: craftsmen.cityId, createdAt: craftsmen.createdAt })
+    .select({ id: craftsmen.id, referralCode: craftsmen.referralCode, displayName: craftsmen.displayName, tier: craftsmen.tier, cityId: craftsmen.cityId, avatarKey: craftsmen.avatarKey, createdAt: craftsmen.createdAt })
     .from(craftsmen)
     .where(eq(craftsmen.userId, row.user.id));
   return {

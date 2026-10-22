@@ -12,21 +12,21 @@ const require = createRequire(import.meta.url);
 const { chromium } = require(process.env.PLAYWRIGHT_MODULE || 'playwright');
 const root = path.resolve(import.meta.dirname, '..');
 
-const LOGO = `<svg viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg"><defs><linearGradient id="a" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#F59E0B"/><stop offset="1" stop-color="#FBBF24"/></linearGradient></defs><rect width="48" height="48" rx="14" fill="#102A43"/><path d="M12 31c5-1 7-6 11-10s9-6 13-5c-1 4-4 8-8 11s-9 5-16 4Z" fill="url(#a)"/><path d="M12 31c2 3 5 5 9 5" stroke="#FBBF24" stroke-width="2.4" stroke-linecap="round" fill="none" opacity=".7"/><circle cx="35" cy="14" r="2.6" fill="#fff" opacity=".9"/></svg>`;
+const LOGO = `<svg viewBox="6 8 44 44" xmlns="http://www.w3.org/2000/svg"><rect x="6" y="8" width="44" height="44" rx="12" fill="#102A43"/><path d="M18 20a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v6a2 2 0 0 1-2 2H20a2 2 0 0 1-2-2v-6Z" fill="#FBBF24"/><path d="M28 28v8a2 2 0 0 1-2 2h-2" stroke="#FBBF24" stroke-width="2.5" stroke-linecap="round" fill="none"/><circle cx="24" cy="40" r="2" fill="#F59E0B"/><path d="M34 23H22" stroke="#102A43" stroke-width="1.5" stroke-linecap="round"/></svg>`;
 
 const icon = (size, maskable) => `<html><body style="margin:0;background:${maskable ? '#102A43' : 'transparent'}">
 <div style="width:${size}px;height:${size}px;display:grid;place-items:center">
 <div style="width:${maskable ? size * 0.72 : size}px;height:${maskable ? size * 0.72 : size}px">${LOGO.replace('<svg ', '<svg width="100%" height="100%" ')}</div></div></body></html>`;
 
-const og = `<html><head><link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@500;700&display=swap" rel="stylesheet"></head>
+const og = `<html><head><link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@500;700&family=Space+Grotesk:wght@700&display=swap" rel="stylesheet"></head>
 <body style="margin:0;overflow:hidden"><div style="width:1200px;height:630px;font-family:'IBM Plex Sans Arabic';direction:rtl;overflow:hidden;background:radial-gradient(130% 140% at 0% 0%,#243b53 0%,#102a43 50%,#0a1b2c 100%);color:#fff;position:relative">
 <div style="position:absolute;inset:0;background-image:linear-gradient(to right,rgba(255,255,255,.05) 1px,transparent 1px),linear-gradient(to bottom,rgba(255,255,255,.05) 1px,transparent 1px);background-size:28px 28px"></div>
 <div style="position:absolute;left:-120px;top:-160px;width:620px;height:620px;border-radius:50%;background:radial-gradient(circle,rgba(245,158,11,.35),transparent 65%)"></div>
-<div style="position:absolute;right:80px;top:90px;display:flex;align-items:center;gap:22px"><div style="width:92px;height:92px">${LOGO.replace('<svg ', '<svg width="100%" height="100%" ')}</div><div style="font-size:64px;font-weight:700">حِرفة</div></div>
-<div style="position:absolute;right:80px;top:240px;font-size:58px;font-weight:700;line-height:1.25;max-width:760px">هوية مهنية موثقة<br>لكل فني دهان</div>
-<div style="position:absolute;right:80px;bottom:80px;font-size:26px;color:rgba(255,255,255,.75)">بطاقة ذكية · معرض أعمال موثق · نقاط على كل فاتورة</div>
+<div style="position:absolute;right:80px;top:90px;display:flex;align-items:center;gap:22px"><div style="width:92px;height:92px">${LOGO.replace('<svg ', '<svg width="100%" height="100%" ')}</div><div style="font-size:54px;font-weight:700">منصة معلمي الدهانات</div></div>
+<div style="position:absolute;right:80px;top:240px;font-size:58px;font-weight:700;line-height:1.25;max-width:760px">بطاقة عضوية معتمدة<br>لكل معلم دهان</div>
+<div style="position:absolute;right:80px;bottom:80px;font-size:26px;color:rgba(255,255,255,.75)">مجتمع فنيي الدهانات وطلاء المباني · نقاط ومكافآت على كل شراء</div>
 <div style="position:absolute;left:80px;top:150px;width:400px;height:252px;border-radius:24px;background:linear-gradient(135deg,#334e68,#102a43);box-shadow:0 30px 60px rgba(0,0,0,.45);transform:rotate(-8deg);border:1px solid rgba(255,255,255,.12)">
-<div style="position:absolute;left:28px;bottom:28px;font:600 38px 'IBM Plex Mono',monospace;letter-spacing:6px;color:#FBBF24;direction:ltr">839 210</div>
+<div style="position:absolute;left:28px;bottom:28px;font:700 40px 'Space Grotesk',monospace;letter-spacing:6px;color:#FBBF24;direction:ltr">839 218</div>
 <div style="position:absolute;right:28px;top:26px;width:46px;height:34px;border-radius:7px;background:linear-gradient(135deg,#fde68a,#f59e0b 55%,#b45309)"></div></div>
 </div></body></html>`;
 
@@ -103,7 +103,8 @@ await shoot(icon(512, true), path.join(root, 'public/icons/maskable-512.png'), 5
 await shoot(icon(180, true), path.join(root, 'src/app/apple-icon.png'), 180, 180);
 await shoot(og, path.join(root, 'public/og.png'), 1200, 630);
 const lqip = {};
-for (const s of SCENES) {
+const onlyBrand = process.env.ONLY_BRAND === '1';
+for (const s of onlyBrand ? [] : SCENES) {
   for (const state of ['before', 'after']) {
     const name = `${s.file}-${state}`;
     const html = room({ ...s, state });
@@ -139,7 +140,7 @@ ${line('الإجمالي غير شامل الضريبة', '1,650.00')}${line('ض
 <div style="margin:22px auto 6px;width:220px">${qrSvg}</div>
 <div style="text-align:center;font-size:14px;color:#666">شكراً لتسوقكم — عينة لأغراض العرض</div>
 </div></body></html>`;
-await shoot(receipt, path.join(root, 'scripts/seed-media/receipt.jpg'), 720, 1080, 'jpeg');
+if (!onlyBrand) await shoot(receipt, path.join(root, 'scripts/seed-media/receipt.jpg'), 720, 1080, 'jpeg');
 const idSample = `<html><head><link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@500;700&display=swap" rel="stylesheet"></head>
 <body style="margin:0;background:#cfd6dd;display:grid;place-items:center;width:960px;height:640px"><div style="width:760px;height:480px;border-radius:24px;background:linear-gradient(135deg,#e7efe9,#cfe0d6);box-shadow:0 20px 40px rgba(0,0,0,.2);font-family:'IBM Plex Sans Arabic';direction:rtl;position:relative;color:#1f3b2d">
 <div style="position:absolute;right:40px;top:36px;font-size:30px;font-weight:700">وثيقة تعريف — عينة</div>
@@ -147,7 +148,9 @@ const idSample = `<html><head><link href="https://fonts.googleapis.com/css2?fami
 <div style="position:absolute;left:40px;top:120px;width:200px;height:250px;border-radius:16px;background:#b8c9bf"></div>
 ${[0, 1, 2, 3].map((i) => `<div style="position:absolute;right:40px;top:${170 + i * 60}px;width:${380 - i * 50}px;height:22px;border-radius:11px;background:rgba(31,59,45,.18)"></div>`).join('')}
 </div></body></html>`;
-await shoot(idSample, path.join(root, 'scripts/seed-media/id-sample.jpg'), 960, 640, 'jpeg');
-await writeFile(path.join(root, 'scripts/seed-media/lqip.json'), JSON.stringify(lqip, null, 1) + '\n');
+if (!onlyBrand) {
+  await shoot(idSample, path.join(root, 'scripts/seed-media/id-sample.jpg'), 960, 640, 'jpeg');
+  await writeFile(path.join(root, 'scripts/seed-media/lqip.json'), JSON.stringify(lqip, null, 1) + '\n');
+}
 await writeFile(path.join(root, 'src/app/icon.svg'), LOGO);
 await browser.close();

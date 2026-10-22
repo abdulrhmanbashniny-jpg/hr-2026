@@ -23,7 +23,7 @@ export default async function InvoiceReviewPage({ searchParams }: { searchParams
       </div>
       <div className="flex gap-1 overflow-x-auto rounded-xl border border-line bg-surface-2 p-1 scrollbar-none sm:inline-flex">
         {(Object.keys(TABS) as (keyof typeof c.invoices.tabs)[]).map((k) => (
-          <Link key={k} href={`/admin/invoices?tab=${k}`} className={cn('shrink-0 rounded-lg px-4 py-1.5 text-sm font-medium', tab === k ? 'bg-surface text-ink shadow-sm' : 'text-muted hover:text-ink')}>
+          <Link key={k} href={`/admin/invoices?tab=${k}`} className={cn('shrink-0 rounded-lg px-4 py-1.5 text-sm font-medium', tab === k ? 'bg-surface-container-lowest text-ink shadow-sm' : 'text-muted hover:text-ink')}>
             {c.invoices.tabs[k]}
           </Link>
         ))}

@@ -148,7 +148,7 @@ export function ProjectEditor({ project, catalogue, defaultCityId }: { project?:
             ))}
           </div>
           <div className="mt-2 flex flex-wrap items-center gap-2">
-            <input type="color" value={color.hex} onChange={(e) => setColor((c) => ({ ...c, hex: e.target.value }))} className="h-11 w-12 cursor-pointer rounded-xl border border-line bg-surface p-1" aria-label="hex" />
+            <input type="color" value={color.hex} onChange={(e) => setColor((c) => ({ ...c, hex: e.target.value }))} className="h-11 w-12 cursor-pointer rounded-xl border border-line bg-surface-container-lowest p-1" aria-label="hex" />
             <Input value={color.name} onChange={(e) => setColor((c) => ({ ...c, name: e.target.value }))} placeholder={t.portfolio.fields.colorName} className="w-40 flex-1" />
             <Input value={color.code} onChange={(e) => setColor((c) => ({ ...c, code: e.target.value }))} placeholder={t.portfolio.fields.colorCode} className="num w-28" />
             <Button

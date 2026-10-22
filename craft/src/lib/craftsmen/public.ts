@@ -1,8 +1,9 @@
 import { and, asc, desc, eq, inArray } from 'drizzle-orm';
 import { unstable_cache } from 'next/cache';
 import { db } from '@/db';
-import { brands, cities, craftsmen, portfolioMedia, portfolioProjects, trades, users, type ColorUsed } from '@/db/schema';
+import { brands, cities, craftsmen, portfolioMedia, portfolioProjects, products, trades, users, type ColorUsed } from '@/db/schema';
 import type { Tier } from '@/lib/incentives/engine';
+import { publicReviews } from '@/lib/reviews/service';
 import { mediaUrl } from '@/lib/storage';
 import { trustScore, type TrustPart } from '@/lib/trust';
 import { craftsmanStats, profileTag } from './service';
@@ -16,7 +17,28 @@ export interface PublicMedia {
   posterUrl: string | null;
   width: number | null;
   height: number | null;
+  durationSec: number | null;
+  bytes: number;
+  mime: string;
   lqip: string | null;
+}
+
+export interface PublicProduct {
+  id: string;
+  nameAr: string;
+  nameEn: string;
+  swatch: string;
+  imageUrl: string | null;
+}
+
+export interface PublicReview {
+  id: string;
+  authorName: string;
+  rating: number;
+  body: string;
+  projectLabel: string | null;
+  contacted: boolean;
+  createdAt: string;
 }
 
 export interface PublicProject {
@@ -31,6 +53,7 @@ export interface PublicProject {
   colors: ColorUsed[];
   fieldVerified: boolean;
   warrantyMonths: number | null;
+  products: PublicProduct[];
   media: PublicMedia[];
 }
 
@@ -55,7 +78,11 @@ export interface PublicProfile {
   trust: { score: number; parts: TrustPart[] };
   stats: { projects: number; fieldVerified: number; approvedInvoices: number };
   projects: PublicProject[];
+  reviews: { items: PublicReview[]; count: number; average: number | null };
 }
+
+/** Each craftsman shows up to three works on the public profile. */
+const PUBLIC_WORKS = 3;
 
 async function load(code: string): Promise<PublicProfile | null> {
   const [row] = await db
@@ -67,7 +94,7 @@ async function load(code: string): Promise<PublicProfile | null> {
   if (!row || row.status !== 'active' || row.c.deletionRequestedAt) return null;
   const c = row.c;
 
-  const [tradeRows, projects, stats] = await Promise.all([
+  const [tradeRows, allProjects, stats, reviewSummary] = await Promise.all([
     c.trades.length ? db.select().from(trades).where(inArray(trades.id, c.trades)).orderBy(asc(trades.sortOrder)) : Promise.resolve([]),
     db
       .select({ p: portfolioProjects, city: cities, brand: brands })
@@ -77,7 +104,11 @@ async function load(code: string): Promise<PublicProfile | null> {
       .where(and(eq(portfolioProjects.craftsmanId, c.id), eq(portfolioProjects.isPublished, true)))
       .orderBy(desc(portfolioProjects.verification), asc(portfolioProjects.sortOrder), desc(portfolioProjects.completedOn)),
     craftsmanStats(c.id),
+    publicReviews(c.id),
   ]);
+  const projects = allProjects.slice(0, PUBLIC_WORKS);
+  const productIds = [...new Set(projects.flatMap((p) => p.p.productIds))];
+  const productRows = productIds.length ? await db.select().from(products).where(and(inArray(products.id, productIds), eq(products.isActive, true))) : [];
   const media = projects.length
     ? await db.select().from(portfolioMedia).where(inArray(portfolioMedia.projectId, projects.map((p) => p.p.id))).orderBy(asc(portfolioMedia.sortOrder))
     : [];
@@ -125,6 +156,9 @@ async function load(code: string): Promise<PublicProfile | null> {
       colors: p.colors,
       fieldVerified: p.verification === 'field_verified',
       warrantyMonths: p.warrantyMonths,
+      products: productRows
+        .filter((x) => p.productIds.includes(x.id))
+        .map((x) => ({ id: x.id, nameAr: x.nameAr, nameEn: x.nameEn, swatch: x.swatch, imageUrl: mediaUrl(x.imageKey) })),
       media: media
         .filter((m) => m.projectId === p.id)
         .map((m) => ({
@@ -136,9 +170,13 @@ async function load(code: string): Promise<PublicProfile | null> {
           posterUrl: mediaUrl(m.posterKey),
           width: m.width,
           height: m.height,
+          durationSec: m.durationSec,
+          bytes: m.bytes,
+          mime: m.mime,
           lqip: m.lqip,
         })),
     })),
+    reviews: { ...reviewSummary, items: reviewSummary.items.map((r) => ({ ...r, createdAt: r.createdAt.toISOString() })) },
   };
 }
 

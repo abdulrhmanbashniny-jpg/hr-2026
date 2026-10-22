@@ -8,7 +8,7 @@ export function buildVCard(input: { name: string; title: string; phone: string |
     `FN:${esc(input.name)}`,
     `N:${esc(input.name)};;;;`,
     `TITLE:${esc(input.title)}`,
-    `ORG:${esc('حِرفة · Hirfa')}`,
+    `ORG:${esc('منصة معلمي الدهانات · Paint Masters')}`,
     ...(input.phone ? [`TEL;TYPE=CELL:${input.phone}`] : []),
     `URL:${input.url}`,
     `ADR;TYPE=WORK:;;;${esc(input.city)};;;SA`,

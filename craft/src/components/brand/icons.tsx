@@ -8,25 +8,28 @@ export function WhatsAppIcon(props: SVGProps<SVGSVGElement>) {
   );
 }
 
-/** The Hirfa mark: a brush stroke inside a rounded badge. */
-export function LogoMark({ size = 32, className }: { size?: number; className?: string }) {
+/** The platform mark: a paint roller inside a rounded navy badge (from the brand sheet). */
+export function LogoMark({ size = 32, className, tone = 'navy' }: { size?: number; className?: string; tone?: 'navy' | 'glass' }) {
   return (
-    <svg width={size} height={size} viewBox="0 0 48 48" className={className} aria-hidden>
-      {/* Solid fills only: a gradient id shared by several copies breaks when the first copy is hidden. */}
-      <rect width="48" height="48" rx="14" fill="#102A43" />
-      <path d="M12 31c5-1 7-6 11-10s9-6 13-5c-1 4-4 8-8 11s-9 5-16 4Z" fill="#F59E0B" />
-      <path d="M20 26c3-3 7-6 13-8-2 3-5 6-8 7.5-2 .9-3.6.8-5 .5Z" fill="#FBBF24" opacity=".85" />
-      <path d="M12 31c2 3 5 5 9 5" stroke="#FBBF24" strokeWidth="2.4" strokeLinecap="round" fill="none" opacity=".7" />
-      <circle cx="35" cy="14" r="2.6" fill="#fff" opacity=".9" />
+    <svg width={size} height={size} viewBox="6 8 44 44" className={className} aria-hidden>
+      <rect x="6" y="8" width="44" height="44" rx="12" fill={tone === 'glass' ? 'rgb(255 255 255 / 0.1)' : '#102A43'} />
+      <path d="M18 20a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v6a2 2 0 0 1-2 2H20a2 2 0 0 1-2-2v-6Z" fill="#FBBF24" />
+      <path d="M28 28v8a2 2 0 0 1-2 2h-2" stroke="#FBBF24" strokeWidth="2.5" strokeLinecap="round" fill="none" />
+      <circle cx="24" cy="40" r="2" fill="#F59E0B" />
+      <path d="M34 23H22" stroke="#102A43" strokeWidth="1.5" strokeLinecap="round" />
     </svg>
   );
 }
 
-export function Logo({ name, className }: { name: string; className?: string }) {
+/** Mark + name + strapline, as in the brand sheet. */
+export function Logo({ name, tagline, className, size = 40, inverted = false }: { name: string; tagline?: string; className?: string; size?: number; inverted?: boolean }) {
   return (
-    <span className={`inline-flex items-center gap-2.5 ${className ?? ''}`}>
-      <LogoMark size={34} />
-      <span className="text-xl font-bold tracking-tight text-ink">{name}</span>
+    <span className={`inline-flex items-center gap-3 ${className ?? ''}`}>
+      <LogoMark size={size} className="shrink-0" />
+      <span className="flex flex-col leading-tight">
+        <span className={`text-headline-sm font-bold tracking-tight ${inverted ? 'text-white' : 'text-primary-container'}`}>{name}</span>
+        {tagline ? <span className={`text-body-sm ${inverted ? 'text-on-primary-container' : 'text-muted'}`}>{tagline}</span> : null}
+      </span>
     </span>
   );
 }

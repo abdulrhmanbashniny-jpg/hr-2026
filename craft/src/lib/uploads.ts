@@ -35,12 +35,21 @@ export interface SignedUpload {
   expiresAt: string;
 }
 
+/**
+ * Serverless hosts cap request bodies (4.5 MB on Vercel). Direct-to-bucket uploads are not affected;
+ * uploads that go through the app (database and local drivers) must stay under the cap.
+ */
+function uploadLimit(): number {
+  if (storage().presignPut || !process.env.VERCEL) return MAX_UPLOAD_BYTES;
+  return Math.min(MAX_UPLOAD_BYTES, 4_400_000);
+}
+
 /** Step 1: reserve a key and hand back where to PUT the bytes. */
 export async function signUpload(userId: string, purpose: UploadPurpose, req: SignRequest): Promise<SignedUpload> {
   const allowed = ALLOWED_BY_PURPOSE[purpose] as readonly string[];
   const mime = req.mime === 'image/heif' ? 'image/heic' : req.mime;
   if (!allowed.includes(mime)) throw new ApiError('upload_type');
-  if (req.bytes <= 0 || req.bytes > MAX_UPLOAD_BYTES) throw new ApiError('upload_too_large');
+  if (req.bytes <= 0 || req.bytes > uploadLimit()) throw new ApiError('upload_too_large');
   if (!/^[a-f0-9]{64}$/.test(req.sha256)) throw new ApiError('validation');
   if (!(await consume([{ key: `upload:${userId}`, limit: 120, windowMs: HOUR }]))) throw new ApiError('rate_limited');
 

@@ -33,7 +33,7 @@ export function OtpInput({ value, onChange, onComplete, disabled, invalid }: { v
             <div
               key={i}
               className={cn(
-                'num grid aspect-[4/5] place-items-center rounded-xl border bg-surface text-2xl font-semibold text-ink shadow-sm transition',
+                'num grid aspect-[4/5] place-items-center rounded-xl border bg-surface-container-lowest text-2xl font-semibold text-ink shadow-sm transition',
                 invalid ? 'border-danger' : active ? 'border-accent ring-4 ring-[var(--ring)]' : 'border-line',
               )}
             >

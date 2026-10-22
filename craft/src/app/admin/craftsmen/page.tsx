@@ -41,7 +41,7 @@ export default async function CraftsmenPage({ searchParams }: { searchParams: Pr
           <Search className="size-4 text-muted" />
           <input name="q" defaultValue={term} placeholder={c.craftsmen.search} className="h-full flex-1 bg-transparent text-sm text-ink outline-none" />
         </label>
-        <select name="tier" defaultValue={tier ?? ''} className="h-11 rounded-xl border border-line bg-surface px-3 text-sm">
+        <select name="tier" defaultValue={tier ?? ''} className="h-11 rounded-xl border border-line bg-surface-container-lowest px-3 text-sm">
           <option value="">{c.craftsmen.tier}</option>
           {(['A', 'B', 'C'] as const).map((x) => (
             <option key={x} value={x}>

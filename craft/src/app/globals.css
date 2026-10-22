@@ -5,38 +5,91 @@
    earnings, rewards and the one primary action on a screen. Everything sits on an 8-pt grid. */
 
 :root {
+  /* ── Design system "منصة معلمي الدهانات" (DESIGN.md). Material roles, light only. ── */
+  --primary: #00152a;
+  --on-primary: #ffffff;
+  --primary-container: #102a43;
+  --on-primary-container: #7a92b0;
+  --inverse-primary: #b0c9e8;
+  --primary-fixed: #d1e4ff;
+  --primary-fixed-dim: #b0c9e8;
+  --on-primary-fixed: #011d35;
+  --on-primary-fixed-variant: #314863;
+  --secondary: #795900;
+  --on-secondary: #ffffff;
+  --secondary-container: #ffc329;
+  --on-secondary-container: #6f5100;
+  --secondary-fixed: #ffdf9f;
+  --secondary-fixed-dim: #f9bd22;
+  --on-secondary-fixed: #261a00;
+  --on-secondary-fixed-variant: #5c4300;
+  --tertiary: #201100;
+  --on-tertiary: #ffffff;
+  --tertiary-container: #3c2300;
+  --on-tertiary-container: #c88000;
+  --tertiary-fixed: #ffddb8;
+  --tertiary-fixed-dim: #ffb95f;
+  --surface: #f7f9fb;
+  --surface-dim: #d8dadc;
+  --surface-bright: #f7f9fb;
+  --surface-container-lowest: #ffffff;
+  --surface-container-low: #f2f4f6;
+  --surface-container: #eceef0;
+  --surface-container-high: #e6e8ea;
+  --surface-container-highest: #e0e3e5;
+  --surface-variant: #e0e3e5;
+  --surface-tint: #49607c;
+  --on-surface: #191c1e;
+  --on-surface-variant: #43474d;
+  --inverse-surface: #2d3133;
+  --inverse-on-surface: #eff1f3;
+  --outline: #74777e;
+  --outline-variant: #c3c6ce;
+  --background: #f7f9fb;
+  --on-background: #191c1e;
+  --error: #ba1a1a;
+  --on-error: #ffffff;
+  --error-container: #ffdad6;
+  --on-error-container: #93000a;
+
+  /* Semantic aliases used across the app (DESIGN.md "Colors"). */
   --canvas: #f8fafc;
-  --surface: #ffffff;
   --surface-2: #f1f5f9;
-  --glass: rgb(255 255 255 / 0.72);
+  --glass: rgb(255 255 255 / 0.85);
   --line: #e2e8f0;
   --line-strong: #cbd5e1;
   --ink: #102a43;
-  --ink-2: #334e68;
-  --muted: #627d98;
-  --faint: #9fb3c8;
-  --primary: #102a43;
+  --ink-2: #334155;
+  --muted: #64748b;
+  --faint: #94a3b8;
   --primary-ink: #ffffff;
   --accent: #f59e0b;
   --accent-2: #fbbf24;
-  --accent-ink: #1f1300;
+  --accent-ink: #102a43;
   --accent-soft: #fff7e6;
   --success: #047857;
-  --success-soft: #e6f6ef;
-  --danger: #c81e1e;
+  --success-soft: #e7f8f1;
+  --danger: #b91c1c;
   --danger-soft: #fdecec;
   --warning: #b45309;
-  --warning-soft: #fff4e5;
+  --warning-soft: #fef3e2;
   --info: #1d4ed8;
   --info-soft: #e8efff;
-  --ring: rgb(245 158 11 / 0.45);
-  --shadow-sm: 0 1px 2px rgb(16 42 67 / 0.06), 0 1px 1px rgb(16 42 67 / 0.04);
-  --shadow-md: 0 8px 24px -8px rgb(16 42 67 / 0.18), 0 2px 6px rgb(16 42 67 / 0.06);
-  --shadow-lg: 0 24px 60px -20px rgb(16 42 67 / 0.35), 0 8px 20px -10px rgb(16 42 67 / 0.15);
+  --whatsapp: #25d366;
+  --ring: rgb(251 191 36 / 0.25);
+
+  /* Elevation (DESIGN.md "Elevation & Depth"): navy-tinted, diffused. */
+  --shadow-xs: 0 1px 2px 0 rgb(16 42 67 / 0.04);
+  --shadow-sm: 0 1px 3px 0 rgb(16 42 67 / 0.04), 0 1px 2px -1px rgb(16 42 67 / 0.02);
+  --shadow-md: 0 10px 15px -3px rgb(16 42 67 / 0.06), 0 4px 6px -4px rgb(16 42 67 / 0.03);
+  --shadow-lg: 0 20px 25px -5px rgb(16 42 67 / 0.1), 0 8px 10px -6px rgb(16 42 67 / 0.05);
+  --shadow-xl: 0 14px 28px rgb(16 42 67 / 0.22), 0 10px 10px rgb(16 42 67 / 0.12);
+  --shadow-2xl: 0 25px 50px -12px rgb(16 42 67 / 0.35);
   --shadow-glow: 0 0 0 1px rgb(245 158 11 / 0.35), 0 12px 32px -12px rgb(245 158 11 / 0.55);
-  /* Chart roles (validated categorical slots 1–2 and the blue sequential ramp). */
-  --series-1: #2a78d6;
-  --series-2: #eb6834;
+
+  /* Chart roles (validated categorical slots and the sequential ramp). */
+  --series-1: #102a43;
+  --series-2: #f59e0b;
   --seq-1: #cde2fb;
   --seq-2: #86b6ef;
   --seq-3: #3987e5;
@@ -46,82 +99,132 @@
   color-scheme: light;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme='light']) {
-    --canvas: #07121d;
-    --surface: #0d1d2d;
-    --surface-2: #132638;
-    --glass: rgb(13 29 45 / 0.72);
-    --line: #1d3349;
-    --line-strong: #2a4560;
-    --ink: #eef3f8;
-    --ink-2: #c7d4e2;
-    --muted: #8fa6bd;
-    --faint: #5d7690;
-    --primary: #eef3f8;
-    --primary-ink: #0a1b2c;
-    --accent-soft: #2a1f08;
-    --success: #34d399;
-    --success-soft: #0b2a20;
-    --danger: #f87171;
-    --danger-soft: #2f1414;
-    --warning: #fbbf24;
-    --warning-soft: #2c2008;
-    --info: #93b4ff;
-    --info-soft: #14213d;
-    --shadow-md: 0 8px 24px -8px rgb(0 0 0 / 0.6);
-    --shadow-lg: 0 24px 60px -20px rgb(0 0 0 / 0.8);
-    --series-1: #3987e5;
-    --series-2: #d95926;
-    --seq-1: #104281;
-    --seq-2: #1c5cab;
-    --seq-3: #2a78d6;
-    --seq-4: #6da7ec;
-    --seq-5: #b7d3f6;
-    --grid: #1a3045;
-    color-scheme: dark;
-  }
-}
-
-:root[data-theme='dark'] {
-  --canvas: #07121d;
-  --surface: #0d1d2d;
-  --surface-2: #132638;
-  --glass: rgb(13 29 45 / 0.72);
-  --line: #1d3349;
-  --line-strong: #2a4560;
-  --ink: #eef3f8;
-  --ink-2: #c7d4e2;
-  --muted: #8fa6bd;
-  --faint: #5d7690;
-  --primary: #eef3f8;
-  --primary-ink: #0a1b2c;
-  --accent-soft: #2a1f08;
-  --success: #34d399;
-  --success-soft: #0b2a20;
-  --danger: #f87171;
-  --danger-soft: #2f1414;
-  --warning: #fbbf24;
-  --warning-soft: #2c2008;
-  --info: #93b4ff;
-  --info-soft: #14213d;
-  --series-1: #3987e5;
-  --series-2: #d95926;
-  --seq-1: #104281;
-  --seq-2: #1c5cab;
-  --seq-3: #2a78d6;
-  --seq-4: #6da7ec;
-  --seq-5: #b7d3f6;
-  --grid: #1a3045;
-  color-scheme: dark;
-}
-
 @theme inline {
   --font-sans: var(--font-plex-arabic), ui-sans-serif, system-ui, sans-serif;
-  --font-mono: var(--font-plex-mono), ui-monospace, monospace;
+  --font-mono: var(--font-grotesk), ui-monospace, monospace;
+  --font-display-hero: var(--font-plex-arabic), ui-sans-serif, sans-serif;
+  --font-display-hero-mobile: var(--font-plex-arabic), ui-sans-serif, sans-serif;
+  --font-headline-xl: var(--font-plex-arabic), ui-sans-serif, sans-serif;
+  --font-headline-xl-mobile: var(--font-plex-arabic), ui-sans-serif, sans-serif;
+  --font-headline-lg: var(--font-plex-arabic), ui-sans-serif, sans-serif;
+  --font-headline-lg-mobile: var(--font-plex-arabic), ui-sans-serif, sans-serif;
+  --font-headline-md: var(--font-plex-arabic), ui-sans-serif, sans-serif;
+  --font-headline-sm: var(--font-plex-arabic), ui-sans-serif, sans-serif;
+  --font-body-lg: var(--font-plex-arabic), ui-sans-serif, sans-serif;
+  --font-body-md: var(--font-plex-arabic), ui-sans-serif, sans-serif;
+  --font-body-sm: var(--font-plex-arabic), ui-sans-serif, sans-serif;
+  --font-label-lg: var(--font-plex-arabic), ui-sans-serif, sans-serif;
+  --font-label-md: var(--font-plex-arabic), ui-sans-serif, sans-serif;
+  --font-label-sm: var(--font-plex-arabic), ui-sans-serif, sans-serif;
+  --font-code-referral: var(--font-grotesk), ui-monospace, monospace;
+
+  --text-display-hero: 48px;
+  --text-display-hero--line-height: 60px;
+  --text-display-hero--letter-spacing: -0.02em;
+  --text-display-hero--font-weight: 700;
+  --text-display-hero-mobile: 32px;
+  --text-display-hero-mobile--line-height: 42px;
+  --text-display-hero-mobile--letter-spacing: -0.01em;
+  --text-display-hero-mobile--font-weight: 700;
+  --text-headline-xl: 36px;
+  --text-headline-xl--line-height: 46px;
+  --text-headline-xl--letter-spacing: -0.015em;
+  --text-headline-xl--font-weight: 700;
+  --text-headline-xl-mobile: 26px;
+  --text-headline-xl-mobile--line-height: 36px;
+  --text-headline-xl-mobile--font-weight: 700;
+  --text-headline-lg: 28px;
+  --text-headline-lg--line-height: 38px;
+  --text-headline-lg--font-weight: 600;
+  --text-headline-lg-mobile: 22px;
+  --text-headline-lg-mobile--line-height: 30px;
+  --text-headline-lg-mobile--font-weight: 600;
+  --text-headline-md: 20px;
+  --text-headline-md--line-height: 28px;
+  --text-headline-md--font-weight: 600;
+  --text-headline-sm: 18px;
+  --text-headline-sm--line-height: 26px;
+  --text-headline-sm--font-weight: 600;
+  --text-body-lg: 16px;
+  --text-body-lg--line-height: 26px;
+  --text-body-lg--font-weight: 400;
+  --text-body-md: 14px;
+  --text-body-md--line-height: 22px;
+  --text-body-md--font-weight: 400;
+  --text-body-sm: 12px;
+  --text-body-sm--line-height: 18px;
+  --text-body-sm--font-weight: 400;
+  --text-label-lg: 15px;
+  --text-label-lg--line-height: 20px;
+  --text-label-lg--font-weight: 600;
+  --text-label-md: 13px;
+  --text-label-md--line-height: 18px;
+  --text-label-md--font-weight: 500;
+  --text-label-sm: 11px;
+  --text-label-sm--line-height: 16px;
+  --text-label-sm--font-weight: 600;
+  --text-code-referral: 24px;
+  --text-code-referral--line-height: 32px;
+  --text-code-referral--letter-spacing: 0.15em;
+  --text-code-referral--font-weight: 700;
+
+  --spacing-margin: 2rem;
+  --spacing-margin-mobile: 1rem;
+  --spacing-gutter: 1.5rem;
+  --spacing-gutter-mobile: 1rem;
+  --spacing-space-xs: 0.25rem;
+  --spacing-space-sm: 0.5rem;
+  --spacing-space-md: 1rem;
+  --spacing-space-lg: 1.5rem;
+  --spacing-space-xl: 2rem;
+
+  --color-primary: var(--primary);
+  --color-on-primary: var(--on-primary);
+  --color-primary-container: var(--primary-container);
+  --color-on-primary-container: var(--on-primary-container);
+  --color-inverse-primary: var(--inverse-primary);
+  --color-primary-fixed: var(--primary-fixed);
+  --color-primary-fixed-dim: var(--primary-fixed-dim);
+  --color-on-primary-fixed: var(--on-primary-fixed);
+  --color-on-primary-fixed-variant: var(--on-primary-fixed-variant);
+  --color-secondary: var(--secondary);
+  --color-on-secondary: var(--on-secondary);
+  --color-secondary-container: var(--secondary-container);
+  --color-on-secondary-container: var(--on-secondary-container);
+  --color-secondary-fixed: var(--secondary-fixed);
+  --color-secondary-fixed-dim: var(--secondary-fixed-dim);
+  --color-on-secondary-fixed: var(--on-secondary-fixed);
+  --color-on-secondary-fixed-variant: var(--on-secondary-fixed-variant);
+  --color-tertiary: var(--tertiary);
+  --color-on-tertiary: var(--on-tertiary);
+  --color-tertiary-container: var(--tertiary-container);
+  --color-on-tertiary-container: var(--on-tertiary-container);
+  --color-tertiary-fixed: var(--tertiary-fixed);
+  --color-tertiary-fixed-dim: var(--tertiary-fixed-dim);
+  --color-surface: var(--surface);
+  --color-surface-dim: var(--surface-dim);
+  --color-surface-bright: var(--surface-bright);
+  --color-surface-container-lowest: var(--surface-container-lowest);
+  --color-surface-container-low: var(--surface-container-low);
+  --color-surface-container: var(--surface-container);
+  --color-surface-container-high: var(--surface-container-high);
+  --color-surface-container-highest: var(--surface-container-highest);
+  --color-surface-variant: var(--surface-variant);
+  --color-surface-tint: var(--surface-tint);
+  --color-on-surface: var(--on-surface);
+  --color-on-surface-variant: var(--on-surface-variant);
+  --color-inverse-surface: var(--inverse-surface);
+  --color-inverse-on-surface: var(--inverse-on-surface);
+  --color-outline: var(--outline);
+  --color-outline-variant: var(--outline-variant);
+  --color-background: var(--background);
+  --color-on-background: var(--on-background);
+  --color-error: var(--error);
+  --color-on-error: var(--on-error);
+  --color-error-container: var(--error-container);
+  --color-on-error-container: var(--on-error-container);
 
   --color-canvas: var(--canvas);
-  --color-surface: var(--surface);
   --color-surface-2: var(--surface-2);
   --color-glass: var(--glass);
   --color-line: var(--line);
@@ -130,7 +233,6 @@
   --color-ink-2: var(--ink-2);
   --color-muted: var(--muted);
   --color-faint: var(--faint);
-  --color-primary: var(--primary);
   --color-primary-ink: var(--primary-ink);
   --color-accent: var(--accent);
   --color-accent-2: var(--accent-2);
@@ -144,6 +246,7 @@
   --color-warning-soft: var(--warning-soft);
   --color-info: var(--info);
   --color-info-soft: var(--info-soft);
+  --color-whatsapp: var(--whatsapp);
 
   --color-navy-50: #f0f4f8;
   --color-navy-100: #d9e2ec;
@@ -155,16 +258,15 @@
   --color-navy-700: #334e68;
   --color-navy-800: #243b53;
   --color-navy-900: #102a43;
-  --color-navy-950: #0a1b2c;
+  --color-navy-950: #00152a;
 
+  --shadow-xs: var(--shadow-xs);
   --shadow-sm: var(--shadow-sm);
   --shadow-md: var(--shadow-md);
   --shadow-lg: var(--shadow-lg);
+  --shadow-xl: var(--shadow-xl);
+  --shadow-2xl: var(--shadow-2xl);
   --shadow-glow: var(--shadow-glow);
-
-  --radius-xl: 14px;
-  --radius-2xl: 20px;
-  --radius-3xl: 28px;
 }
 
 @layer base {
@@ -173,8 +275,8 @@
     text-rendering: optimizeLegibility;
   }
   body {
-    background: var(--canvas);
-    color: var(--ink-2);
+    background: var(--surface);
+    color: var(--on-surface);
     font-family: var(--font-sans);
     font-feature-settings: 'kern' 1;
     -webkit-font-smoothing: antialiased;
@@ -197,7 +299,7 @@
     background: rgb(245 158 11 / 0.3);
   }
   :focus-visible {
-    outline: 2px solid var(--accent);
+    outline: 2px solid var(--accent-2);
     outline-offset: 2px;
     border-radius: 6px;
   }
@@ -210,11 +312,19 @@
   textarea {
     font: inherit;
   }
+  /* Arabic needs taller lines than Latin (DESIGN.md "Typography"). */
+  :lang(ar) p {
+    line-height: 1.6;
+  }
+  button:not(:disabled),
+  [role='button']:not([aria-disabled='true']) {
+    cursor: pointer;
+  }
 }
 
 @layer components {
   .num {
-    font-family: var(--font-mono);
+    font-family: var(--font-grotesk), ui-monospace, monospace;
     font-variant-numeric: tabular-nums;
     letter-spacing: 0.01em;
     direction: ltr;
@@ -222,7 +332,6 @@
   }
   /* Tabular figures without forcing left-to-right, for numbers inside Arabic phrases. */
   .tabular {
-    font-family: var(--font-mono);
     font-variant-numeric: tabular-nums;
   }
   .glass {
@@ -232,16 +341,57 @@
     border: 1px solid var(--line);
   }
   .surface {
-    background: var(--surface);
+    background: var(--surface-container-lowest);
     border: 1px solid var(--line);
-    border-radius: var(--radius-2xl);
+    border-radius: 1rem;
     box-shadow: var(--shadow-sm);
+  }
+  /* Member numbers, referral codes and licence numbers (DESIGN.md "Referral & Code Blocks"). */
+  .code-id {
+    font-family: var(--font-grotesk), ui-monospace, monospace;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: 0.15em;
+    direction: ltr;
+    unicode-bidi: isolate;
+  }
+  /* The VIP credential surface: deep navy with a warm light from the top corner. */
+  .vip-surface {
+    background:
+      radial-gradient(70% 90% at 100% 0%, rgb(251 191 36 / 0.14) 0%, transparent 70%),
+      radial-gradient(60% 80% at 0% 100%, rgb(16 42 67 / 0.9) 0%, transparent 70%),
+      #00152a;
+    box-shadow: var(--shadow-xl);
+    border: 1px solid rgb(251 191 36 / 0.2);
+  }
+  .field {
+    height: 3rem;
+    width: 100%;
+    border-radius: 0.75rem;
+    border: 1px solid var(--line);
+    background: var(--surface-container-lowest);
+    padding-inline: 1rem;
+    color: #0f172a;
+    transition:
+      border-color 120ms ease,
+      box-shadow 120ms ease;
+  }
+  .field::placeholder {
+    color: var(--muted);
+  }
+  .field:focus {
+    outline: none;
+    border-color: var(--accent-2);
+    box-shadow: 0 0 0 3px var(--ring);
+  }
+  .field[aria-invalid='true'] {
+    border-color: #ef4444;
+    box-shadow: 0 0 0 3px rgb(239 68 68 / 0.2);
   }
   .amber-gradient {
     background: linear-gradient(135deg, #f59e0b 0%, #fbbf24 100%);
   }
   .navy-gradient {
-    background: radial-gradient(120% 140% at 100% 0%, #243b53 0%, #102a43 45%, #0a1b2c 100%);
+    background: radial-gradient(120% 140% at 100% 0%, #243b53 0%, #102a43 45%, #00152a 100%);
   }
   /* A glowing gradient border for the active or highlighted card. */
   .glow-border {

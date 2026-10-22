@@ -5,13 +5,13 @@ import { storage } from '@/lib/storage';
 type Ctx = { params: Promise<{ key: string[] }> };
 
 /**
- * Public portfolio media and avatars. Keys are random and never reused, so responses are immutable.
+ * Public portfolio media, avatars and product images. Keys are random and never reused, so responses are immutable.
  * Invoices and identity documents live under other prefixes and are never served here.
  */
 export const GET = route<Ctx>(
   async (req: NextRequest, { params }) => {
     const key = (await params).key.join('/');
-    if (!/^(portfolio|avatar)\/\d{4}\/\d{2}\/[A-Za-z0-9_-]{24}\.[a-z0-9]{2,5}$/.test(key)) throw new ApiError('not_found');
+    if (!/^(portfolio|avatar|product)\/\d{4}\/\d{2}\/[A-Za-z0-9_-]{24}\.[a-z0-9]{2,5}$/.test(key)) throw new ApiError('not_found');
     const driver = storage();
     if (driver.presignGet) return NextResponse.redirect(await driver.presignGet(key, 3600), { status: 302, headers: { 'Cache-Control': 'public, max-age=3000' } });
     const file = await driver.get(key);

@@ -37,7 +37,7 @@ export default async function LandingPage() {
           </div>
           <div className="relative mx-auto grid max-w-6xl items-center gap-12 px-4 pt-12 pb-16 sm:px-6 lg:grid-cols-[1.1fr_1fr] lg:pt-20 lg:pb-24">
             <div>
-              <span className="inline-flex items-center gap-2 rounded-full border border-line bg-surface px-3 py-1 text-xs font-medium text-ink-2 shadow-sm">
+              <span className="inline-flex items-center gap-2 rounded-full border border-line bg-surface-container-lowest px-3 py-1 text-xs font-medium text-ink-2 shadow-sm">
                 <span className="size-1.5 rounded-full bg-accent" />
                 {t.landing.eyebrow}
               </span>
@@ -108,7 +108,7 @@ export default async function LandingPage() {
         </section>
 
         {/* How it works */}
-        <section id="how" className="scroll-mt-20 bg-surface py-16">
+        <section id="how" className="scroll-mt-20 bg-surface-container-lowest py-16">
           <div className="mx-auto max-w-6xl px-4 sm:px-6">
             <h2 className="text-center text-3xl font-bold">{t.landing.how.title}</h2>
             <ol className="mt-10 grid gap-5 md:grid-cols-4">

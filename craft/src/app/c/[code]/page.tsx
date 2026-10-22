@@ -17,6 +17,7 @@ import { parseReferralCode } from '@/lib/codes/damm';
 import { leadSource } from '@/lib/craftsmen/lookup';
 import { getPublicProfile } from '@/lib/craftsmen/public';
 import { recordLead } from '@/lib/craftsmen/service';
+import { env } from '@/lib/env';
 import { fmtCode, fmtMonthYear, getI18n } from '@/lib/i18n';
 import { requestFingerprint } from '@/lib/signals';
 
@@ -75,7 +76,7 @@ export default async function CraftsmanProfilePage({ params, searchParams }: Pro
             <div className="min-w-0 space-y-6">
               <section className="surface relative p-5 sm:p-7">
                 <div className="flex flex-col gap-5 sm:flex-row sm:items-start">
-                  <Avatar name={p.displayName} src={p.avatarUrl} size={96} className="-mt-14 border-4 border-surface shadow-md sm:-mt-16" />
+                  <Avatar name={p.displayName} src={p.avatarUrl} size={96} className="-mt-14 border-4 border-surface-container-lowest shadow-md sm:-mt-16" />
                   <div className="min-w-0 flex-1">
                     <div className="flex flex-wrap items-center gap-2">
                       <h1 className="text-2xl font-bold sm:text-3xl">{p.displayName}</h1>
@@ -150,7 +151,7 @@ export default async function CraftsmanProfilePage({ params, searchParams }: Pro
 
             <aside className="space-y-4 lg:sticky lg:top-20 lg:self-start">
               <div className="surface space-y-4 p-5">
-                <ProfileActions code={p.code} name={p.displayName} hasWhatsapp={p.hasWhatsapp} acceptsCalls={p.acceptsCalls} src={src} />
+                <ProfileActions code={p.code} name={p.displayName} hasWhatsapp={p.hasWhatsapp} acceptsCalls={p.acceptsCalls} src={src} profileUrl={`${env.appUrl}/c/${p.code}`} />
                 <LiveSeal code={p.code} />
               </div>
               <div className="surface p-5">

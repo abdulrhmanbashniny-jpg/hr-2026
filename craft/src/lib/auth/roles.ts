@@ -13,9 +13,11 @@ export type StaffPermission =
   | 'redemptions:fulfill'
   | 'dealers:manage'
   | 'reports:export'
-  | 'settings:manage';
+  | 'settings:manage'
+  | 'reviews:moderate'
+  | 'products:manage';
 
-const REVIEWER: StaffPermission[] = ['console:view', 'invoices:review', 'craftsmen:view', 'fraud:view', 'redemptions:fulfill'];
+const REVIEWER: StaffPermission[] = ['console:view', 'invoices:review', 'craftsmen:view', 'fraud:view', 'redemptions:fulfill', 'reviews:moderate'];
 const ADMIN: StaffPermission[] = [
   ...REVIEWER,
   'craftsmen:manage',
@@ -25,6 +27,7 @@ const ADMIN: StaffPermission[] = [
   'rewards:manage',
   'dealers:manage',
   'reports:export',
+  'products:manage',
 ];
 
 const GRANTS: Record<UserRole, ReadonlySet<StaffPermission>> = {

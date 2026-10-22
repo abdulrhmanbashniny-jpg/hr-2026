@@ -35,8 +35,8 @@ export async function googleWalletSaveUrl(p: PassInput): Promise<string> {
           classId,
           state: 'ACTIVE',
           hexBackgroundColor: '#102A43',
-          logo: { sourceUri: { uri: `${env.appUrl}/icons/icon-192.png` }, contentDescription: { defaultValue: { language: 'ar', value: 'حِرفة' } } },
-          cardTitle: { defaultValue: { language: 'ar', value: 'حِرفة · بطاقة العضوية المهنية' } },
+          logo: { sourceUri: { uri: `${env.appUrl}/icons/icon-192.png` }, contentDescription: { defaultValue: { language: 'ar', value: 'منصة معلمي الدهانات' } } },
+          cardTitle: { defaultValue: { language: 'ar', value: 'منصة معلمي الدهانات · بطاقة العضوية المعتمدة' } },
           subheader: { defaultValue: { language: 'ar', value: p.tierLabel } },
           header: { defaultValue: { language: 'ar', value: p.displayName } },
           textModulesData: [

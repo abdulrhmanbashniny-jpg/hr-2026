@@ -11,6 +11,11 @@ const REF_COOKIE = 'hirfa_ref';
 function contentSecurityPolicy(nonce: string): string {
   const dev = process.env.NODE_ENV !== 'production';
   const storage = [process.env.S3_ENDPOINT, process.env.MEDIA_PUBLIC_BASE_URL].filter(Boolean).map((u) => new URL(u!).origin);
+  // Plain AWS S3 (no custom endpoint): presigned URLs are virtual-hosted, or path-style for dotted bucket names.
+  if (process.env.STORAGE_DRIVER === 's3' && !process.env.S3_ENDPOINT && process.env.S3_BUCKET) {
+    const region = process.env.S3_REGION || 'us-east-1';
+    storage.push(`https://${process.env.S3_BUCKET}.s3.${region}.amazonaws.com`, `https://s3.${region}.amazonaws.com`);
+  }
   return [
     "default-src 'self'",
     `script-src 'self' 'nonce-${nonce}' 'strict-dynamic'${dev ? " 'unsafe-eval'" : ''}`,

@@ -131,7 +131,7 @@ export async function buildExport(type: ExportType, format: 'xlsx' | 'csv', from
     return { body: new TextEncoder().encode(csv), mime: 'text/csv; charset=utf-8', filename: `hirfa-${type}-${stamp}.csv` };
   }
   const wb = new ExcelJS.Workbook();
-  wb.creator = 'Hirfa';
+  wb.creator = 'Paint Masters';
   const ws = wb.addWorksheet(type, { views: [{ state: 'frozen', ySplit: 1 }] });
   ws.columns = columns.map((c) => ({ header: c, key: c, width: Math.max(12, c.length + 4) }));
   ws.getRow(1).font = { bold: true, color: { argb: 'FFFFFFFF' } };

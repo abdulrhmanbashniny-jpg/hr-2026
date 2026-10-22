@@ -3,6 +3,11 @@ import type { ConsoleDictionary } from './console-ar';
 export const consoleEn: ConsoleDictionary = {
   title: 'Mission control',
   nav: {
+    reviews: 'Client reviews',
+    products: 'Factory products',
+    portal: 'Administration portal',
+    search: 'Search craftsmen by name, number or mobile…',
+    signedInAs: 'Your role',
     overview: 'Overview',
     invoices: 'Invoice review',
     craftsmen: 'Craftsmen',

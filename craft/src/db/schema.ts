@@ -62,7 +62,9 @@ export const leadSourceEnum = pgEnum('lead_source', ['qr', 'nfc', 'search', 'lin
 export const signalEventEnum = pgEnum('signal_event', ['signup', 'login', 'invoice', 'referral']);
 export const fraudSubjectEnum = pgEnum('fraud_subject', ['craftsman', 'invoice', 'referral']);
 export const fraudStatusEnum = pgEnum('fraud_status', ['open', 'dismissed', 'confirmed']);
-export const uploadPurposeEnum = pgEnum('upload_purpose', ['portfolio', 'invoice', 'document', 'avatar']);
+export const uploadPurposeEnum = pgEnum('upload_purpose', ['portfolio', 'invoice', 'document', 'avatar', 'product']);
+export const reviewStatusEnum = pgEnum('review_status', ['pending', 'approved', 'rejected']);
+export const productCategoryEnum = pgEnum('product_category', ['interior', 'exterior', 'primer', 'waterproofing', 'decorative', 'wood_metal']);
 export const uploadStatusEnum = pgEnum('upload_status', ['pending', 'uploaded', 'attached']);
 
 // ───────────────────────── Identity ─────────────────────────
@@ -289,6 +291,8 @@ export const portfolioProjects = pgTable(
     verifiedBy: uuid('verified_by').references(() => users.id, { onDelete: 'set null' }),
     verifiedAt: ts('verified_at'),
     warrantyMonths: smallint('warranty_months'),
+    /** Factory products used on this job (marketing for the factory on the public profile). */
+    productIds: uuid('product_ids').array().notNull().default(sql`'{}'::uuid[]`),
     isPublished: boolean('is_published').notNull().default(true),
     sortOrder: integer('sort_order').notNull().default(0),
     createdAt: createdAt(),
@@ -368,6 +372,8 @@ export const invoices = pgTable(
     ipHash: text('ip_hash'),
     deviceId: text('device_id'),
     processingError: text('processing_error'),
+    /** Only one worker processes an invoice at a time: a run holds this lease while it reads the QR and the photo. */
+    processingLeaseUntil: ts('processing_lease_until'),
     createdAt: createdAt(),
     updatedAt: updatedAt(),
   },
@@ -512,6 +518,57 @@ export const leads = pgTable(
     createdAt: createdAt(),
   },
   (t) => [index('leads_craftsman_idx').on(t.craftsmanId, t.createdAt)],
+);
+
+/** Client reviews on a craftsman's public profile. Published only after staff moderation. */
+export const reviews = pgTable(
+  'reviews',
+  {
+    id: id(),
+    craftsmanId: uuid('craftsman_id')
+      .notNull()
+      .references(() => craftsmen.id, { onDelete: 'cascade' }),
+    authorName: text('author_name').notNull(),
+    rating: smallint('rating').notNull(),
+    body: text('body').notNull(),
+    projectLabel: text('project_label'),
+    status: reviewStatusEnum('status').notNull().default('pending'),
+    /** The reviewer's network reached this craftsman through the platform (WhatsApp, call or estimate) before reviewing. */
+    contactedViaPlatform: boolean('contacted_via_platform').notNull().default(false),
+    ipHash: text('ip_hash'),
+    deviceId: text('device_id'),
+    moderatedBy: uuid('moderated_by').references(() => users.id, { onDelete: 'set null' }),
+    moderatedAt: ts('moderated_at'),
+    createdAt: createdAt(),
+  },
+  (t) => [index('reviews_craftsman_idx').on(t.craftsmanId, t.status, t.createdAt), index('reviews_status_idx').on(t.status, t.createdAt), check('reviews_rating_range', sql`${t.rating} between 1 and 5`)],
+);
+
+/** The factory's own product catalogue, shown on the public site and on the work it was used for. */
+export const products = pgTable(
+  'products',
+  {
+    id: id(),
+    nameAr: text('name_ar').notNull(),
+    nameEn: text('name_en').notNull(),
+    category: productCategoryEnum('category').notNull(),
+    descriptionAr: text('description_ar'),
+    descriptionEn: text('description_en'),
+    finishAr: text('finish_ar'),
+    finishEn: text('finish_en'),
+    /** Square metres per litre per coat, used by the estimator. */
+    coverageSqmPerLiter: doublePrecision('coverage_sqm_per_liter'),
+    sizes: text('sizes').array().notNull().default(sql`'{}'::text[]`),
+    /** Accent colour for the product card. */
+    swatch: text('swatch').notNull().default('#102A43'),
+    imageKey: text('image_key'),
+    isActive: boolean('is_active').notNull().default(true),
+    isFeatured: boolean('is_featured').notNull().default(false),
+    sortOrder: integer('sort_order').notNull().default(0),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [index('products_active_idx').on(t.isActive, t.sortOrder)],
 );
 
 export const pushSubscriptions = pgTable('push_subscriptions', {

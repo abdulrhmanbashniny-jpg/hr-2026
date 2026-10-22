@@ -104,7 +104,7 @@ export function RewardsStore({ balance, next, items, redemptions }: { balance: n
 
       <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-none">
         {(['all', ...kinds] as const).map((k) => (
-          <button key={k} onClick={() => setKind(k)} className={cn('press shrink-0 rounded-xl border px-3.5 py-2 text-sm transition', kind === k ? 'border-navy-900 bg-navy-900 text-white dark:border-navy-200 dark:bg-navy-200 dark:text-navy-950' : 'border-line bg-surface text-ink-2')}>
+          <button key={k} onClick={() => setKind(k)} className={cn('press shrink-0 rounded-xl border px-3.5 py-2 text-sm transition', kind === k ? 'border-navy-900 bg-navy-900 text-white dark:border-navy-200 dark:bg-navy-200 dark:text-navy-950' : 'border-line bg-surface-container-lowest text-ink-2')}>
             {k === 'all' ? t.common.all : t.rewards.kinds[k]}
           </button>
         ))}

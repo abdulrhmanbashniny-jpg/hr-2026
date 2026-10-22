@@ -114,7 +114,7 @@ export function ProfileForm({ data, catalogue }: { data: ProfileData; catalogue:
                   type="button"
                   aria-pressed={on}
                   onClick={() => setForm((x) => ({ ...x, trades: on ? x.trades.filter((v) => v !== tr.id) : [...x.trades, tr.id].slice(0, 8) }))}
-                  className={cn('press rounded-xl border px-3 py-2 text-sm', on ? 'border-navy-900 bg-navy-900 text-white dark:border-navy-200 dark:bg-navy-200 dark:text-navy-950' : 'border-line bg-surface text-ink-2')}
+                  className={cn('press rounded-xl border px-3 py-2 text-sm', on ? 'border-navy-900 bg-navy-900 text-white dark:border-navy-200 dark:bg-navy-200 dark:text-navy-950' : 'border-line bg-surface-container-lowest text-ink-2')}
                 >
                   {locale === 'ar' ? tr.nameAr : tr.nameEn}
                 </button>

@@ -109,7 +109,7 @@ export function OnboardingForm({ catalogue, initialRef }: { catalogue: Pick<Cata
                 type="button"
                 aria-pressed={on}
                 onClick={() => setTrades((xs) => (on ? xs.filter((x) => x !== tr.id) : [...xs, tr.id].slice(0, 8)))}
-                className={cn('press rounded-xl border px-3 py-2 text-sm transition', on ? 'border-navy-900 bg-navy-900 text-white dark:border-navy-200 dark:bg-navy-200 dark:text-navy-950' : 'border-line bg-surface text-ink-2 hover:border-line-strong')}
+                className={cn('press rounded-xl border px-3 py-2 text-sm transition', on ? 'border-navy-900 bg-navy-900 text-white dark:border-navy-200 dark:bg-navy-200 dark:text-navy-950' : 'border-line bg-surface-container-lowest text-ink-2 hover:border-line-strong')}
               >
                 {locale === 'ar' ? tr.nameAr : tr.nameEn}
               </button>
