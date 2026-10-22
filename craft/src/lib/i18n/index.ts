@@ -1,4 +1,4 @@
-import { cookies, headers } from 'next/headers';
+import { cookies } from 'next/headers';
 import { ar, type Dictionary } from './ar';
 import { en } from './en';
 import type { Locale } from './format';
@@ -6,12 +6,10 @@ import type { Locale } from './format';
 export const LOCALE_COOKIE = 'hirfa_locale';
 const dictionaries: Record<Locale, Dictionary> = { ar, en };
 
+/** Arabic unless the visitor picked English with the language switch; many Saudi phones run in English. */
 export async function getLocale(): Promise<Locale> {
-  const jar = await cookies();
-  const c = jar.get(LOCALE_COOKIE)?.value;
-  if (c === 'ar' || c === 'en') return c;
-  const accept = (await headers()).get('accept-language') ?? '';
-  return /^en\b/i.test(accept) ? 'en' : 'ar';
+  const c = (await cookies()).get(LOCALE_COOKIE)?.value;
+  return c === 'en' ? 'en' : 'ar';
 }
 
 export function dictionary(locale: Locale): Dictionary {
