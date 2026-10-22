@@ -18,12 +18,12 @@ export default async function OnboardingPage() {
   return (
     <div className="mx-auto max-w-xl px-4 py-8 sm:py-14">
       <div className="mb-8 flex items-center justify-between">
-        <Logo name={t.meta.product} />
+        <Logo name={t.meta.product} tagline={t.meta.tagline} />
         <LanguageSwitch />
       </div>
-      <div className="surface p-6 sm:p-8">
-        <h1 className="text-2xl font-bold sm:text-3xl">{t.onboarding.title}</h1>
-        <p className="mt-2 mb-8 text-muted">{t.onboarding.subtitle}</p>
+      <div className="rounded-2xl border border-line bg-surface-container-lowest p-6 shadow-xl sm:p-8">
+        <h1 className="text-headline-lg-mobile text-primary sm:text-headline-lg">{t.onboarding.title}</h1>
+        <p className="mt-2 mb-8 text-body-md text-on-surface-variant">{t.onboarding.subtitle}</p>
         <OnboardingForm catalogue={{ cities, regions, trades }} initialRef={/^\d{6,7}$/.test(ref) ? ref : ''} />
       </div>
     </div>

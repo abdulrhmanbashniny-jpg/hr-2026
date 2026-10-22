@@ -3,7 +3,8 @@
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { BadgeCheck, CircleAlert, LoaderCircle } from 'lucide-react';
 import { useRouter } from 'next/navigation';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import { clearSignupDraft, loadSignupDraft } from '@/components/auth/signup-draft';
 import { MembershipCard } from '@/components/card/membership-card';
 import { Button } from '@/components/ui/button';
 import { confetti } from '@/components/ui/confetti';
@@ -13,6 +14,8 @@ import type { Catalogue } from '@/lib/catalogue';
 import { parseReferralCode } from '@/lib/codes/damm';
 import { cn } from '@/lib/cn';
 import { f } from '@/lib/i18n/format';
+import { landingStrings } from '@/lib/i18n/pages/landing';
+import type { Tier } from '@/lib/incentives/engine';
 import { useI18n } from '@/lib/i18n/client';
 
 export function OnboardingForm({ catalogue, initialRef }: { catalogue: Pick<Catalogue, 'cities' | 'regions' | 'trades'>; initialRef: string }) {
@@ -24,7 +27,24 @@ export function OnboardingForm({ catalogue, initialRef }: { catalogue: Pick<Cata
   const [years, setYears] = useState('5');
   const [ref, setRef] = useState(initialRef);
   const [consent, setConsent] = useState(false);
+  const [district, setDistrict] = useState('');
+  const [declaredTier, setDeclaredTier] = useState<Tier | ''>('');
+  const [restored, setRestored] = useState(false);
   const [done, setDone] = useState<{ referralCode: string } | null>(null);
+  const ls = landingStrings(locale);
+
+  // Details typed into the sign-up card on the home page, before the mobile was confirmed.
+  useEffect(() => {
+    const d = loadSignupDraft();
+    if (!d) return;
+    if (d.name) setName(d.name);
+    if (d.cityId) setCityId(d.cityId);
+    setDistrict(d.district);
+    setDeclaredTier(d.classification);
+    if (d.referralCode && !initialRef) setRef(d.referralCode);
+    if (d.terms) setConsent(true);
+    setRestored(true);
+  }, [initialRef]);
 
   const refCheck = ref.trim() ? parseReferralCode(ref) : null;
   const refQuery = useQuery({
@@ -42,9 +62,20 @@ export function OnboardingForm({ catalogue, initialRef }: { catalogue: Pick<Cata
   const submit = useMutation({
     mutationFn: () =>
       api<{ referralCode: string }>('/onboarding', {
-        body: { displayName: name, cityId, trades, yearsExperience: Number(years) || 0, referralCode: refCheck?.ok ? refCheck.code : null, consent: true, fp: deviceHint() },
+        body: {
+          displayName: name,
+          cityId,
+          district: district.trim() || null,
+          declaredTier: declaredTier || null,
+          trades,
+          yearsExperience: Number(years) || 0,
+          referralCode: refCheck?.ok ? refCheck.code : null,
+          consent: true,
+          fp: deviceHint(),
+        },
       }),
     onSuccess: (r) => {
+      clearSignupDraft();
       setDone(r);
       confetti();
       setTimeout(() => {
@@ -77,6 +108,7 @@ export function OnboardingForm({ catalogue, initialRef }: { catalogue: Pick<Cata
         if (valid) submit.mutate();
       }}
     >
+      {restored && <p className="rounded-xl bg-secondary-fixed/30 px-space-md py-space-sm text-body-sm text-on-secondary-fixed-variant">{ls.onboarding.restored}</p>}
       <Field label={t.onboarding.name} htmlFor="name">
         <Input id="name" value={name} onChange={(e) => setName(e.target.value)} placeholder={t.onboarding.namePlaceholder} maxLength={60} autoFocus required />
       </Field>
@@ -97,6 +129,21 @@ export function OnboardingForm({ catalogue, initialRef }: { catalogue: Pick<Cata
         </Field>
         <Field label={t.onboarding.years} htmlFor="years">
           <Input id="years" inputMode="numeric" className="num" value={years} onChange={(e) => setYears(e.target.value.replace(/\D/g, '').slice(0, 2))} />
+        </Field>
+      </div>
+      <div className="grid gap-4 sm:grid-cols-2">
+        <Field label={ls.onboarding.district} htmlFor="district">
+          <Input id="district" value={district} onChange={(e) => setDistrict(e.target.value)} maxLength={60} placeholder={ls.signup.districtPlaceholder} />
+        </Field>
+        <Field label={ls.onboarding.classification} hint={ls.onboarding.classificationHint} htmlFor="declared">
+          <Select id="declared" value={declaredTier} onChange={(e) => setDeclaredTier(e.target.value as Tier | '')}>
+            <option value="">{ls.signup.classificationPlaceholder}</option>
+            {(['A', 'B', 'C'] as const).map((k) => (
+              <option key={k} value={k}>
+                {t.tiers.role[k]}
+              </option>
+            ))}
+          </Select>
         </Field>
       </div>
       <Field label={t.onboarding.trades}>

@@ -3,7 +3,7 @@
 import { ArrowLeft, ArrowRight, MessageSquareText, Smartphone } from 'lucide-react';
 import { AnimatePresence, motion } from 'motion/react';
 import { useRouter } from 'next/navigation';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Field } from '@/components/ui/field';
 import { api, ApiClientError } from '@/lib/api-client';
@@ -40,8 +40,12 @@ export function LoginForm({ next, initialPhone = '', autoSend = false }: { next?
     return () => clearInterval(id);
   }, [challenge]);
 
+  const autoSent = useRef(false);
   useEffect(() => {
-    if (autoSend && initialPhone) void send();
+    // Once only, even when React re-runs effects (development strict mode).
+    if (!autoSend || !initialPhone || autoSent.current) return;
+    autoSent.current = true;
+    void send();
     // Only on mount: the visitor submitted the sign-up card a moment ago.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -117,7 +121,9 @@ export function LoginForm({ next, initialPhone = '', autoSend = false }: { next?
           {challenge.devCode && (
             <div className="rounded-xl border border-dashed border-accent bg-accent-soft px-3 py-2 text-center text-sm text-ink">
               {f(t.auth.devCode, { code: '' })}
-              <span className="num font-semibold tracking-[0.2em]">{challenge.devCode}</span>
+              <span className="num font-semibold tracking-[0.2em]" data-dev-code>
+                {challenge.devCode}
+              </span>
             </div>
           )}
           <OtpInput value={code} onChange={setCode} onComplete={verify} disabled={busy} invalid={!!error} />
