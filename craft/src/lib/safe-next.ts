@@ -14,5 +14,7 @@ export function safeNext(next: string | null | undefined, fallback: string): str
     return fallback;
   }
   if (url.origin !== BASE) return fallback;
-  return `${url.pathname}${url.search}${url.hash}`;
+  const path = `${url.pathname}${url.search}${url.hash}`;
+  // Resolving can itself produce a protocol-relative path ("/.//evil.example" becomes "//evil.example").
+  return path.startsWith('//') ? fallback : path;
 }

@@ -32,6 +32,7 @@ const STATUS: Partial<Record<ErrorCode, number>> = {
   password_reused: 400,
   password_change_required: 403,
   sms_unavailable: 503,
+  phone_unconfirmed: 403,
   not_configured: 501,
   sms_failed: 502,
   generic: 500,

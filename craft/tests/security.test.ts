@@ -7,7 +7,7 @@ describe('safeNext', () => {
   });
 
   it('refuses anything that a browser would send to another origin', () => {
-    for (const evil of ['//evil.example', '/\\evil.example', '/\t/evil.example', '/\n/evil.example', '/%09/evil.example'.replace('%09', '\t'), 'https://evil.example', 'javascript:alert(1)', '\\\\evil.example', ''])
+    for (const evil of ['//evil.example', '/\\evil.example', '/\t/evil.example', '/\n/evil.example', '/%09/evil.example'.replace('%09', '\t'), 'https://evil.example', 'javascript:alert(1)', '\\\\evil.example', '', '/.//evil.example', '/a/..//evil.example', '/./\t/evil.example'.replace('\t', '')])
       expect(safeNext(evil, '/app')).toBe('/app');
   });
 

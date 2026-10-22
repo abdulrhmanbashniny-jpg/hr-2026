@@ -1,5 +1,5 @@
 import { and, desc, eq, ilike, or, type SQL } from 'drizzle-orm';
-import { Search } from 'lucide-react';
+import { KeyRound, Search } from 'lucide-react';
 import Link from 'next/link';
 import { db } from '@/db';
 import { cities, craftsmen, users, wallets } from '@/db/schema';
@@ -35,7 +35,13 @@ export default async function CraftsmenPage({ searchParams }: { searchParams: Pr
     .limit(200);
   return (
     <div className="space-y-5">
-      <h1 className="text-2xl font-bold sm:text-3xl">{c.craftsmen.title}</h1>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <h1 className="text-2xl font-bold sm:text-3xl">{c.craftsmen.title}</h1>
+        <Link href="/admin/accounts" className="inline-flex items-center gap-1.5 text-sm font-medium text-primary-container underline-offset-2 hover:underline">
+          <KeyRound className="size-4" />
+          {c.accounts.link}
+        </Link>
+      </div>
       <form className="flex flex-wrap gap-2">
         <label className="glass flex h-11 min-w-64 flex-1 items-center gap-2 rounded-xl px-3">
           <Search className="size-4 text-muted" />

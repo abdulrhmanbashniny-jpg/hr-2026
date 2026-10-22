@@ -3,7 +3,7 @@
 import { useRouter } from 'next/navigation';
 import { useState, useTransition } from 'react';
 import { BadgeCheck, CircleAlert, Copy, KeyRound, MessageCircle, Trash2 } from 'lucide-react';
-import { adjustPointsAction, confirmPhoneAction, removeCraftsmanPhotoAction, resetPasswordAction, setTierAction } from '@/app/admin/actions';
+import { adjustPointsAction, confirmPhoneAction, deleteAccountAction, removeCraftsmanPhotoAction, resetPasswordAction, setTierAction } from '@/app/admin/actions';
 import { Avatar } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Field, Input } from '@/components/ui/field';
@@ -217,6 +217,39 @@ export function AccessAdmin({ userId, phone, phoneVerified, canManage, brand, ap
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+/** Frees a number registered by someone else (only for an account that never created a card). */
+export function DeleteAccount({ userId }: { userId: string }) {
+  const c = useConsole();
+  const toast = useToast();
+  const router = useRouter();
+  const [pending, start] = useTransition();
+  return (
+    <div className="space-y-2">
+      <p className="text-body-sm text-muted">{c.accounts.deleteHelp}</p>
+      <Button
+        variant="secondary"
+        size="sm"
+        icon={<Trash2 className="size-4" />}
+        loading={pending}
+        className="text-[#B91C1C]"
+        onClick={() => {
+          if (!confirm(c.accounts.deleteConfirm)) return;
+          start(async () => {
+            const r = await deleteAccountAction(userId);
+            if (r.ok) {
+              toast(c.accounts.deleted);
+              router.replace('/admin/accounts');
+              router.refresh();
+            } else toast(r.error, 'error');
+          });
+        }}
+      >
+        {c.accounts.deleteAccount}
+      </Button>
     </div>
   );
 }

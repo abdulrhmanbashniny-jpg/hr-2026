@@ -1,5 +1,6 @@
 import { asc } from 'drizzle-orm';
 import { unstable_cache } from 'next/cache';
+import { SITE_TAG } from '@/lib/cache-tags';
 import { db } from '@/db';
 import { brands, cities, regions, trades } from '@/db/schema';
 
@@ -15,7 +16,7 @@ export const catalogue = unstable_cache(
     return { regions: r, cities: c, trades: tr, brands: b };
   },
   ['catalogue'],
-  { revalidate: 3600, tags: ['catalogue'] },
+  { revalidate: 3600, tags: ['catalogue', SITE_TAG] },
 );
 
 export type Catalogue = Awaited<ReturnType<typeof catalogue>>;

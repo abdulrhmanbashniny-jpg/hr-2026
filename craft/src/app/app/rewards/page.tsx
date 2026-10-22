@@ -1,3 +1,4 @@
+import { ShieldAlert } from 'lucide-react';
 import { RewardsStore } from '@/components/app/rewards-store';
 import { requireCraftsmanPage } from '@/lib/auth/guards';
 import { getI18n } from '@/lib/i18n';
@@ -13,6 +14,12 @@ export default async function RewardsPage() {
         <h1 className="text-2xl font-bold sm:text-3xl">{t.rewards.title}</h1>
         <p className="mt-1 text-sm text-muted">{t.rewards.subtitle}</p>
       </div>
+      {!s.user.phoneVerified && (
+        <p className="flex items-start gap-2 rounded-2xl bg-warning-soft p-3.5 text-sm text-ink-2">
+          <ShieldAlert className="mt-0.5 size-5 shrink-0 text-warning" />
+          {t.errors.phone_unconfirmed}
+        </p>
+      )}
       <RewardsStore
         balance={c.balance}
         next={c.next ? { rewardTitle: locale === 'ar' ? c.next.reward.titleAr : c.next.reward.titleEn, remaining: c.next.remaining, pct: c.next.pct } : null}

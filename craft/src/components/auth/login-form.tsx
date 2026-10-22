@@ -81,11 +81,16 @@ export function LoginForm({ next, smsEnabled = false, supportWhatsapp = null }: 
       {forgot && (
         <div className="space-y-3 rounded-2xl bg-surface-2 p-3.5 text-sm text-ink-2">
           <p>{t.auth.forgotHelp}</p>
-          {supportWhatsapp && (
+          {supportWhatsapp ? (
             <a href={`https://wa.me/${supportWhatsapp}`} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 font-semibold text-[#047857] hover:underline">
               <MessageCircle className="size-4" />
               {t.auth.contactTeam}
             </a>
+          ) : (
+            <Link href="/#contact" className="inline-flex items-center gap-1.5 font-semibold text-primary-container hover:underline">
+              <MessageCircle className="size-4" />
+              {t.auth.contactPage}
+            </Link>
           )}
         </div>
       )}

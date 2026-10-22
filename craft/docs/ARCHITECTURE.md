@@ -156,10 +156,10 @@ Conventions:
 ### Auth
 | Method & path | Body | Result |
 | --- | --- | --- |
-| `POST /auth/password` | `{ phone, password, next? }` | Sets the session cookie. `{ userId, role, next }`; `next` is the password page while a staff-issued one-time password is in force. `invalid_credentials` for an unknown number and a wrong password alike; 6 guesses per 15 min per number and network, 60 per day per number, 40 per hour per network. |
+| `POST /auth/password` | `{ phone, password, next? }` | Sets the session cookie. `{ userId, role, next }`; `next` is the password page while a staff-issued one-time password is in force. `invalid_credentials` for an unknown number and a wrong password alike. 6 attempts per 15 min per number and network, 40 per hour per network; after 30 failed guesses on a number in 24 h from anywhere, only a device that has signed in to that account before may keep trying (a distributed guesser is stopped, the owner is not locked out), and a staff reset clears the count. A staff-issued one-time password expires after 7 days and is accepted however it is typed (case, spaces, dashes). |
 | `POST /auth/register` | `{ phone, password }` | New craftsman account, signed in, `next: /app/onboarding`. `phone_taken` if the number exists (recovery goes through staff). 5 per hour per network. |
 | `POST /me/password` | `{ current?, password, next? }` | Changes the password (`current` required when one exists), signs out every other session. The only call allowed while a one-time password is in force. |
-| `POST /auth/otp` | `{ phone }` | `{ challengeId, expiresAt, resendAt, devCode? }` — 3 per 10 min per number, 10 per hour per IP. `503 sms_unavailable` in production without an SMS provider. `devCode` only with the console SMS driver outside production (or `ALLOW_DEV_OTP`). |
+| `POST /auth/otp` | `{ phone }` | `{ challengeId, expiresAt, resendAt, devCode? }` — 3 per 10 min per number, 10 per hour per IP. `503 sms_unavailable` in production without an SMS provider. `devCode` only with the console SMS driver outside production. |
 | `POST /auth/verify` | `{ challengeId, code }` | Sets the session cookie. `{ user, next }` where `next` is `/app/onboarding` for new craftsmen. |
 | `POST /auth/logout` | — | Revokes the session. |
 | `GET /me` | — | Current user, craftsman summary, wallet balance. |

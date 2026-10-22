@@ -1,5 +1,6 @@
 import { and, desc, eq, isNull, sql } from 'drizzle-orm';
 import { unstable_cache } from 'next/cache';
+import { SITE_TAG } from '@/lib/cache-tags';
 import { db } from '@/db';
 import { cities, craftsmen, users } from '@/db/schema';
 
@@ -17,7 +18,7 @@ export const landingStats = unstable_cache(
     return { craftsmen: Number(r.craftsmen), cities: Number(r.cities), invoices: Number(r.invoices), points: Number(r.points) };
   },
   ['landing-stats'],
-  { revalidate: 600 },
+  { revalidate: 600, tags: [SITE_TAG] },
 );
 
 export const featuredCraftsmen = unstable_cache(
@@ -41,5 +42,5 @@ export const featuredCraftsmen = unstable_cache(
       .orderBy(sql`case ${craftsmen.tier} when 'A' then 0 when 'B' then 1 else 2 end`, desc(craftsmen.yearsExperience))
       .limit(6),
   ['featured-craftsmen'],
-  { revalidate: 600 },
+  { revalidate: 600, tags: [SITE_TAG] },
 );

@@ -1,5 +1,6 @@
 import { and, asc, count, eq, gt, isNull, or, sql } from 'drizzle-orm';
 import { unstable_cache } from 'next/cache';
+import { SITE_TAG } from '@/lib/cache-tags';
 import { db } from '@/db';
 import { craftsmen, redemptions, rewards, users } from '@/db/schema';
 import { getPublicProfile, type PublicProfile } from '@/lib/craftsmen/public';
@@ -43,7 +44,7 @@ const memberCounts = unstable_cache(
     return { total: row?.total ?? 0, verified: row?.verified ?? 0 };
   },
   ['landing-member-counts'],
-  { revalidate: 300 },
+  { revalidate: 300, tags: [SITE_TAG] },
 );
 
 /** Active rewards grouped by kind, with how often each kind has been requested. */
@@ -76,7 +77,7 @@ const rewardGroups = unstable_cache(
     return { groups: [...byKind.values()], total: items.length };
   },
   ['landing-reward-groups'],
-  { revalidate: 300 },
+  { revalidate: 300, tags: [SITE_TAG] },
 );
 
 /** The card shown in the "smart card" section: the signed-in member's own, or the showcase member's. */

@@ -96,6 +96,14 @@ async function assertNotOwn(redemptionId: string, actorId: string) {
 
 export async function fulfillRedemption(id: string, actorId: string, voucherCode?: string | null, note?: string | null) {
   await assertNotOwn(id, actorId);
+  // Nothing of value goes to a number nobody has proven (requests made before that rule, too).
+  const [owner] = await db
+    .select({ verified: users.phoneVerifiedAt })
+    .from(redemptions)
+    .innerJoin(craftsmen, eq(craftsmen.id, redemptions.craftsmanId))
+    .innerJoin(users, eq(users.id, craftsmen.userId))
+    .where(eq(redemptions.id, id));
+  if (owner && !owner.verified) throw new ApiError('phone_unconfirmed');
   const [red] = await db
     .update(redemptions)
     .set({ status: 'fulfilled', voucherCodeEnc: voucherCode ? encryptSecret(voucherCode.trim()) : null, note: note ?? null, fulfilledBy: actorId, fulfilledAt: new Date() })

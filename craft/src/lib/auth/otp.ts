@@ -18,9 +18,12 @@ const MAX_ATTEMPTS = 5;
 
 const codeHash = (challengeId: string, code: string) => hmac(`${challengeId}:${code}`, 'otp');
 
-/** The console SMS driver shows the code to the developer; never in production unless explicitly allowed. */
+/**
+ * The console SMS driver shows the code to the developer, never in production: there it would hand
+ * any account to whoever types its number.
+ */
 function exposeDevCode(): boolean {
-  return env.sms.driver === 'console' && (!isProduction || process.env.ALLOW_DEV_OTP === 'true');
+  return env.sms.driver === 'console' && !isProduction;
 }
 
 /**

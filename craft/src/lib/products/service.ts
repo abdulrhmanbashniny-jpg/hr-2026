@@ -1,5 +1,6 @@
 import { and, asc, eq, inArray } from 'drizzle-orm';
 import { unstable_cache, revalidateTag } from 'next/cache';
+import { SITE_TAG } from '@/lib/cache-tags';
 import { z } from 'zod';
 import { db } from '@/db';
 import { appSettings, products } from '@/db/schema';
@@ -55,7 +56,7 @@ export const getBrand = unstable_cache(
     return parsed.success ? parsed.data : DEFAULT_BRAND;
   },
   ['brand-settings'],
-  { tags: [CATALOGUE_TAG], revalidate: 3600 },
+  { tags: [CATALOGUE_TAG, SITE_TAG], revalidate: 3600 },
 );
 
 export async function saveBrand(value: BrandSettings, actorId: string) {
@@ -82,7 +83,7 @@ const withUrl = (p: typeof products.$inferSelect): Product => ({ ...p, imageUrl:
 export const listActiveProducts = unstable_cache(
   async (): Promise<Product[]> => (await db.select().from(products).where(eq(products.isActive, true)).orderBy(asc(products.sortOrder), asc(products.nameEn))).map(withUrl),
   ['active-products'],
-  { tags: [CATALOGUE_TAG], revalidate: 3600 },
+  { tags: [CATALOGUE_TAG, SITE_TAG], revalidate: 3600 },
 );
 
 export async function listAllProducts(): Promise<Product[]> {

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { hashPassword, passwordProblem, temporaryPassword, verifyPassword } from '@/lib/auth/password';
+import { hashPassword, passwordProblem, temporaryPassword, temporaryPasswordForm, verifyPassword } from '@/lib/auth/password';
 
 describe('password hashing', () => {
   it('verifies the right password and rejects others', async () => {
@@ -55,5 +55,20 @@ describe('password rules', () => {
       seen.add(p);
     }
     expect(seen.size).toBe(50);
+  });
+});
+
+describe('one-time passwords typed on a phone', () => {
+  it('accepts lower case, spaces or no dashes, and Arabic digits', () => {
+    expect(temporaryPasswordForm('km7q-tx4p-9ahw')).toBe('KM7Q-TX4P-9AHW');
+    expect(temporaryPasswordForm('KM7Q TX4P 9AHW')).toBe('KM7Q-TX4P-9AHW');
+    expect(temporaryPasswordForm('km7qtx4p9ahw')).toBe('KM7Q-TX4P-9AHW');
+    expect(temporaryPasswordForm('KM٧Q-TX٤P-٩AHW')).toBe('KM7Q-TX4P-9AHW');
+  });
+
+  it('refuses anything that cannot be one', () => {
+    expect(temporaryPasswordForm('my-own-password')).toBeNull();
+    expect(temporaryPasswordForm('KM7Q-TX4P-9AH')).toBeNull();
+    expect(temporaryPasswordForm('KM0Q-TX4P-9AHW')).toBeNull();
   });
 });

@@ -1,12 +1,13 @@
-import { and, eq, isNull, ne } from 'drizzle-orm';
+import { and, eq, isNull, ne, sql } from 'drizzle-orm';
 import { db } from '@/db';
-import { sessions, users } from '@/db/schema';
+import { deviceSignals, sessions, users } from '@/db/schema';
 import { audit } from '@/lib/audit';
 import { ApiError } from '@/lib/http';
 import { normalizeSaudiMobile } from '@/lib/phone';
 import { recordSignal, requestFingerprint } from '@/lib/signals';
-import { hashPassword, passwordProblem, temporaryPassword, verifyPassword, type PasswordProblem } from './password';
-import { consume, HOUR, MINUTE } from './rate-limit';
+import { hashPassword, passwordProblem, temporaryPasswordForm, verifyPassword, type PasswordProblem } from './password';
+import { consume, HOUR, isLimited, MINUTE, recordHit } from './rate-limit';
+import { failureKey, issueTemporaryPassword } from './temporary';
 import { isStaff, staffCan, type UserRole } from './roles';
 import { createSession } from './session';
 
@@ -16,6 +17,39 @@ const PROBLEM_ERROR: Record<PasswordProblem, 'password_too_short' | 'password_to
   too_common: 'password_too_common',
 };
 
+/** A staff-issued one-time password stops working after this long; staff issue a new one. */
+const TEMPORARY_PASSWORD_DAYS = 7;
+/** Failed guesses on one number, from anywhere, before only known devices may keep trying. */
+const NUMBER_FAILURE_CEILING = 30;
+
+/** Whether this browser has signed in to the account before (the device cookie set by the proxy). */
+async function knownDevice(userId: string, deviceId: string | null): Promise<boolean> {
+  if (!deviceId) return false;
+  const [row] = await db
+    .select({ id: deviceSignals.id })
+    .from(deviceSignals)
+    .where(and(eq(deviceSignals.userId, userId), eq(deviceSignals.deviceId, deviceId)))
+    .limit(1);
+  return !!row;
+}
+
+/**
+ * Checks a password, accepting a staff-issued one-time password however it was typed (lower case,
+ * without the dashes) while one is in force, and refusing it once it has expired.
+ */
+async function passwordMatches(user: { passwordHash: string | null; mustChangePassword: boolean; passwordChangedAt: Date | null } | undefined, password: string): Promise<boolean> {
+  if (await verifyPassword(password, user?.passwordHash ?? null)) {
+    return !(user!.mustChangePassword && temporaryExpired(user!.passwordChangedAt));
+  }
+  if (!user?.mustChangePassword) return false;
+  const typed = temporaryPasswordForm(password);
+  return !!typed && typed !== password && !temporaryExpired(user.passwordChangedAt) && (await verifyPassword(typed, user.passwordHash));
+}
+
+function temporaryExpired(issuedAt: Date | null): boolean {
+  return !issuedAt || Date.now() - issuedAt.getTime() > TEMPORARY_PASSWORD_DAYS * 24 * HOUR;
+}
+
 function assertStrong(password: string, phone?: string) {
   const problem = passwordProblem(password, phone);
   if (problem) throw new ApiError(PROBLEM_ERROR[problem]);
@@ -24,8 +58,11 @@ function assertStrong(password: string, phone?: string) {
 /**
  * Phone and password. The same answer for an unknown number, a number without a password and a
  * wrong password, and the same time spent hashing, so the form does not reveal who is registered.
- * Guesses are capped per number and requester (a stranger cannot lock the owner out from their own
- * network), with a looser daily ceiling per number and a cap per network.
+ *
+ * Guessing is capped per number and requester, and per network, which stops guessing from one
+ * place. Across all requesters, failed guesses on a number are counted too; past the ceiling only
+ * a device that has signed in to the account before may keep trying, so a distributed guesser is
+ * stopped and a stranger still cannot lock the owner out of their own phone.
  */
 export async function loginWithPassword(rawPhone: string, password: string): Promise<{ userId: string; role: UserRole; mustChangePassword: boolean }> {
   const phone = normalizeSaudiMobile(rawPhone);
@@ -34,14 +71,16 @@ export async function loginWithPassword(rawPhone: string, password: string): Pro
   const requester = fp.ipHash ?? fp.deviceId ?? 'anon';
   const allowed = await consume([
     { key: `pw:phone:${phone}:${requester}`, limit: 6, windowMs: 15 * MINUTE },
-    { key: `pw:phone-day:${phone}`, limit: 60, windowMs: 24 * HOUR },
     ...(fp.ipHash ? [{ key: `pw:ip:${fp.ipHash}`, limit: 40, windowMs: HOUR }] : []),
   ]);
   if (!allowed) throw new ApiError('rate_limited');
 
   const [user] = await db.select().from(users).where(eq(users.phone, phone));
-  const valid = await verifyPassword(password, user?.passwordHash ?? null);
-  if (!user || !valid) throw new ApiError('invalid_credentials');
+  if ((await isLimited(failureKey(phone), NUMBER_FAILURE_CEILING, 24 * HOUR)) && !(user && (await knownDevice(user.id, fp.deviceId)))) throw new ApiError('rate_limited');
+  if (!user || !(await passwordMatches(user, password))) {
+    await recordHit(failureKey(phone));
+    throw new ApiError('invalid_credentials');
+  }
   if (user.status === 'suspended') throw new ApiError('account_suspended');
 
   await createSession(user.id);
@@ -88,7 +127,7 @@ export async function changePassword(userId: string, sessionId: string, current:
   if (!user) throw new ApiError('unauthenticated');
   const allowed = await consume([{ key: `pw:change:${userId}`, limit: 8, windowMs: 15 * MINUTE }]);
   if (!allowed) throw new ApiError('rate_limited');
-  if (user.passwordHash && !(await verifyPassword(current ?? '', user.passwordHash))) throw new ApiError('wrong_password');
+  if (user.passwordHash && !(await passwordMatches(user, current ?? ''))) throw new ApiError('wrong_password');
   assertStrong(next, user.phone);
   if (user.passwordHash && (await verifyPassword(next, user.passwordHash))) throw new ApiError('password_reused');
 
@@ -113,14 +152,24 @@ export async function resetPasswordByStaff(actor: { id: string; role: UserRole }
   const [target] = await db.select({ id: users.id, role: users.role }).from(users).where(eq(users.id, targetUserId));
   if (!target) throw new ApiError('not_found');
   assertCanManage(actor, target);
-  const temp = temporaryPassword();
-  const passwordHash = await hashPassword(temp);
+  return issueTemporaryPassword(target.id, actor.id);
+}
+
+/**
+ * Removes an account that never created a card: a number someone else registered, or a sign-up
+ * the owner wants to start again. Staff accounts and members with a card are refused.
+ */
+export async function deleteAccountWithoutCard(actor: { id: string; role: UserRole }, targetUserId: string) {
+  const [target] = await db.select({ id: users.id, role: users.role }).from(users).where(eq(users.id, targetUserId));
+  if (!target) throw new ApiError('not_found');
+  assertCanManage(actor, target);
+  if (isStaff(target.role)) throw new ApiError('forbidden');
   await db.transaction(async (tx) => {
-    await tx.update(users).set({ passwordHash, passwordChangedAt: new Date(), mustChangePassword: true }).where(eq(users.id, target.id));
-    await tx.update(sessions).set({ revokedAt: new Date() }).where(and(eq(sessions.userId, target.id), isNull(sessions.revokedAt)));
-    await audit(actor.id, 'auth.password_reset', { type: 'user', id: target.id }, undefined, tx);
+    const has = await tx.execute(sql`SELECT 1 FROM craftsmen WHERE user_id = ${target.id} LIMIT 1`);
+    if (has.rows.length) throw new ApiError('invalid_state');
+    await tx.delete(users).where(eq(users.id, target.id));
+    await audit(actor.id, 'auth.account_deleted', { type: 'user', id: target.id }, undefined, tx);
   });
-  return temp;
 }
 
 /** Staff reached the owner on this number (a call or a WhatsApp reply). */

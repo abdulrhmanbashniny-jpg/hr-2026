@@ -1,5 +1,6 @@
 import { and, asc, desc, eq, inArray } from 'drizzle-orm';
 import { unstable_cache } from 'next/cache';
+import { SITE_TAG } from '@/lib/cache-tags';
 import { db } from '@/db';
 import { brands, cities, craftsmen, portfolioMedia, portfolioProjects, products, trades, users, type ColorUsed } from '@/db/schema';
 import type { Tier } from '@/lib/incentives/engine';
@@ -187,5 +188,5 @@ async function load(code: string): Promise<PublicProfile | null> {
  * the craftsman or staff invalidates it at once. The API route adds CDN caching on top.
  */
 export function getPublicProfile(code: string): Promise<PublicProfile | null> {
-  return unstable_cache(() => load(code), ['public-profile', code], { tags: [profileTag(code)], revalidate: 300 })();
+  return unstable_cache(() => load(code), ['public-profile', code], { tags: [profileTag(code), SITE_TAG], revalidate: 300 })();
 }

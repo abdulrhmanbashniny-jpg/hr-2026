@@ -8,7 +8,7 @@ import { isUniqueViolation } from '@/db/errors';
 import { cities, craftsmen, dealers, fraudFlags, incentiveRules, invoices, portfolioProjects, referrals, rewards, sessions, users } from '@/db/schema';
 import { audit } from '@/lib/audit';
 import { apiStaff } from '@/lib/auth/guards';
-import { confirmPhoneByStaff, resetPasswordByStaff } from '@/lib/auth/password-login';
+import { confirmPhoneByStaff, deleteAccountWithoutCard, resetPasswordByStaff } from '@/lib/auth/password-login';
 import type { StaffPermission } from '@/lib/auth/roles';
 import { removeAvatar } from '@/lib/craftsmen/avatar';
 import { invalidateProfile } from '@/lib/craftsmen/service';
@@ -54,6 +54,17 @@ export async function resetPasswordAction(userId: string): Promise<{ ok: true; p
     const password = await resetPasswordByStaff({ id: s.user.id, role: s.user.role }, z.uuid().parse(userId));
     revalidatePath('/admin/craftsmen', 'layout');
     return { ok: true, password };
+  } catch (err) {
+    return failure(err);
+  }
+}
+
+export async function deleteAccountAction(userId: string): Promise<ActionResult> {
+  try {
+    const s = await apiStaff('craftsmen:manage');
+    await deleteAccountWithoutCard({ id: s.user.id, role: s.user.role }, z.uuid().parse(userId));
+    revalidatePath('/admin/accounts', 'layout');
+    return { ok: true };
   } catch (err) {
     return failure(err);
   }

@@ -93,3 +93,13 @@ export function temporaryPassword(): string {
   }
   return groups.join('-');
 }
+
+/**
+ * A one-time password as it may arrive from a phone keyboard ("km7q tx4p 9ahw", "KM7QTX4P9AHW"),
+ * put back in its issued form, or null if it cannot be one.
+ */
+export function temporaryPasswordForm(input: string): string | null {
+  const compact = normalizePassword(input).toUpperCase().replace(/[\s\-–—_.]/g, '');
+  if (compact.length !== 12 || [...compact].some((ch) => !TEMP_ALPHABET.includes(ch))) return null;
+  return `${compact.slice(0, 4)}-${compact.slice(4, 8)}-${compact.slice(8)}`;
+}
