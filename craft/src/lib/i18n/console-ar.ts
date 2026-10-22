@@ -84,6 +84,11 @@ export const consoleAr = {
     unknownDealer: 'مورد غير مسجل',
   },
   craftsmen: {
+    photo: 'صورة البطاقة',
+    removePhoto: 'حذف الصورة',
+    removeReason: 'سبب حذف الصورة (يُحفظ في سجل التدقيق)',
+    photoRemoved: 'حُذفت صورة البطاقة',
+    noPhoto: 'لم يضف الفني صورة',
     title: 'الفنيون',
     search: 'ابحث بالاسم أو رقم العضوية أو الجوال',
     tier: 'الفئة',

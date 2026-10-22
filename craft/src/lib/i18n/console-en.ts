@@ -86,6 +86,11 @@ export const consoleEn: ConsoleDictionary = {
     unknownDealer: 'Unregistered dealer',
   },
   craftsmen: {
+    photo: 'Card photo',
+    removePhoto: 'Remove photo',
+    removeReason: 'Why is the photo being removed? (kept in the audit log)',
+    photoRemoved: 'Card photo removed',
+    noPhoto: 'No photo yet',
     title: 'Craftsmen',
     search: 'Search by name, member number or mobile',
     tier: 'Tier',

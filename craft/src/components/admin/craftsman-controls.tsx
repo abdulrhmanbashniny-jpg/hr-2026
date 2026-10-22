@@ -2,7 +2,9 @@
 
 import { useRouter } from 'next/navigation';
 import { useState, useTransition } from 'react';
-import { adjustPointsAction, setTierAction } from '@/app/admin/actions';
+import { Trash2 } from 'lucide-react';
+import { adjustPointsAction, removeCraftsmanPhotoAction, setTierAction } from '@/app/admin/actions';
+import { Avatar } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Field, Input } from '@/components/ui/field';
 import { useToast } from '@/components/ui/toast';
@@ -88,6 +90,42 @@ export function AdjustForm({ craftsmanId }: { craftsmanId: string }) {
       >
         {c.craftsmen.adjustSave}
       </Button>
+    </div>
+  );
+}
+
+/** The card photo as staff see it, with removal for an unsuitable picture (the reason is audited). */
+export function PhotoAdmin({ craftsmanId, name, photoUrl, canManage }: { craftsmanId: string; name: string; photoUrl: string | null; canManage: boolean }) {
+  const c = useConsole();
+  const toast = useToast();
+  const router = useRouter();
+  const [pending, start] = useTransition();
+  return (
+    <div className="flex flex-col items-center gap-2">
+      <Avatar name={name} src={photoUrl} size={112} className="rounded-2xl ring-2 ring-secondary/20" />
+      {photoUrl && canManage ? (
+        <button
+          type="button"
+          disabled={pending}
+          onClick={() => {
+            const reason = prompt(c.craftsmen.removeReason);
+            if (!reason || reason.trim().length < 3) return;
+            start(async () => {
+              const r = await removeCraftsmanPhotoAction(craftsmanId, reason.trim());
+              if (r.ok) {
+                toast(c.craftsmen.photoRemoved);
+                router.refresh();
+              } else toast(r.error, 'error');
+            });
+          }}
+          className="press inline-flex h-8 items-center gap-1.5 rounded-lg px-2.5 text-label-sm text-[#EF4444] hover:bg-[rgb(239_68_68/0.06)] disabled:opacity-50"
+        >
+          <Trash2 className="size-3.5" />
+          {c.craftsmen.removePhoto}
+        </button>
+      ) : (
+        !photoUrl && <span className="text-label-sm text-muted">{c.craftsmen.noPhoto}</span>
+      )}
     </div>
   );
 }

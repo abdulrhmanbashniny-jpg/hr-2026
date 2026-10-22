@@ -6,7 +6,7 @@ import { db } from '@/db';
 import { cities, craftsmen, deviceSignals, invoices, pointsLedger, portfolioProjects, referrals, users, verificationDocuments, wallets } from '@/db/schema';
 import { reviewDocumentAction, setSuspendedAction, verifyProjectAction } from '@/app/admin/actions';
 import { ActionButton } from '@/components/admin/action-button';
-import { AdjustForm, TierForm } from '@/components/admin/craftsman-controls';
+import { AdjustForm, PhotoAdmin, TierForm } from '@/components/admin/craftsman-controls';
 import { LedgerList } from '@/components/app/ledger-list';
 import { Avatar } from '@/components/ui/avatar';
 import { Badge, type Tone } from '@/components/ui/badge';
@@ -15,6 +15,7 @@ import { Card, CardHeader } from '@/components/ui/card';
 import { requireStaffPage } from '@/lib/auth/guards';
 import { staffCan } from '@/lib/auth/roles';
 import { formatLocal } from '@/lib/phone';
+import { mediaUrl } from '@/lib/storage';
 import { f, fmtDate, fmtMoney, fmtNumber, getI18n } from '@/lib/i18n';
 import { consoleDictionary } from '@/lib/i18n/console';
 
@@ -53,10 +54,10 @@ export default async function CraftsmanDetail({ params }: { params: Promise<{ id
   return (
     <div className="space-y-6">
       <div className="surface flex flex-col gap-5 p-6 sm:flex-row sm:items-center">
-        <Avatar name={row.c.displayName} size={72} />
+        <PhotoAdmin craftsmanId={id} name={row.c.displayName} photoUrl={mediaUrl(row.c.avatarKey)} canManage={canManage} />
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2">
-            <h1 className="text-2xl font-bold">{row.c.displayName}</h1>
+            <h1 className="text-headline-lg text-primary">{row.c.displayName}</h1>
             <Badge tone={row.c.tier === 'A' ? 'accent' : row.c.tier === 'B' ? 'navy' : 'neutral'}>{t.tiers[row.c.tier]}</Badge>
             {suspended && <Badge tone="danger">{c.craftsmen.suspended}</Badge>}
           </div>
