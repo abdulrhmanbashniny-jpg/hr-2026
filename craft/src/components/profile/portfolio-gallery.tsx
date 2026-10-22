@@ -102,7 +102,9 @@ function WorkCard({ p, s, onOpen }: { p: PublicProject; s: ProfileStrings; onOpe
               {main.kind === 'video' ? <Video className="size-3.5" aria-hidden /> : <ImageIcon className="size-3.5" aria-hidden />}
               {f(main.kind === 'video' ? s.works.video : s.works.photo, { fmt: format(main.mime) })}
             </span>
-            <span className="num pointer-events-none absolute end-3 top-3 rounded-md bg-surface-container-lowest/90 px-2 py-0.5 text-label-sm text-primary">{fileSize(main.bytes)}</span>
+            <span className="pointer-events-none absolute end-3 top-3 rounded-md bg-surface-container-lowest/90 px-2 py-0.5 text-label-sm text-primary">
+              <span className="num">{fileSize(main.bytes)}</span>
+            </span>
           </>
         )}
       </div>

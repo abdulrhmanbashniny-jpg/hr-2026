@@ -17,7 +17,7 @@ export default async function EditProjectPage({ params }: { params: Promise<{ id
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-center gap-3">
-        <h1 className="text-2xl font-bold sm:text-3xl">{t.portfolio.editTitle}</h1>
+        <h1 className="text-headline-lg-mobile text-primary sm:text-headline-lg">{t.portfolio.editTitle}</h1>
         {project.verification === 'field_verified' && <Badge tone="success">{t.portfolio.verifiedBadge}</Badge>}
       </div>
       <ProjectEditor
@@ -25,6 +25,7 @@ export default async function EditProjectPage({ params }: { params: Promise<{ id
         defaultCityId={s.craftsman.cityId}
         project={{
           ...project,
+          productIds: project.productIds,
           media: project.media.map((m) => ({ id: m.id, kind: m.kind, role: m.role, url: m.url, thumbUrl: m.thumbUrl, posterUrl: m.posterUrl, lqip: m.lqip })),
         }}
       />

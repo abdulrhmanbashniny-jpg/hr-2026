@@ -2,7 +2,7 @@
 
 import { Plus, Trash2, X } from 'lucide-react';
 import { useRouter } from 'next/navigation';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardHeader } from '@/components/ui/card';
 import { Switch } from '@/components/ui/controls';
@@ -22,6 +22,7 @@ export interface EditableProject {
   completedOn: string | null;
   areaSqm: number | null;
   brandId: string | null;
+  productIds?: string[];
   colors: { name: string; code?: string; hex: string }[];
   warrantyMonths: number | null;
   isPublished: boolean;
@@ -45,6 +46,13 @@ export function ProjectEditor({ project, catalogue, defaultCityId }: { project?:
     isPublished: project?.isPublished ?? true,
   });
   const [colors, setColors] = useState(project?.colors ?? []);
+  const [productIds, setProductIds] = useState<string[]>(project?.productIds ?? []);
+  const [products, setProducts] = useState<{ id: string; nameAr: string; nameEn: string; swatch: string; imageUrl: string | null }[]>([]);
+  useEffect(() => {
+    api<typeof products>('/products')
+      .then(setProducts)
+      .catch(() => undefined);
+  }, []);
   const [color, setColor] = useState({ name: '', code: '', hex: '#d8c9b0' });
   const [saving, setSaving] = useState(false);
   const set = (k: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => setForm((f) => ({ ...f, [k]: e.target.value }));
@@ -58,7 +66,7 @@ export function ProjectEditor({ project, catalogue, defaultCityId }: { project?:
       district: form.district || null,
       completedOn: form.completedOn || null,
       areaSqm: form.areaSqm ? Number(form.areaSqm) : null,
-      brandId: form.brandId || null,
+      productIds,
       warrantyMonths: form.warrantyMonths ? Number(form.warrantyMonths) : null,
       isPublished: form.isPublished,
       colors,
@@ -120,20 +128,31 @@ export function ProjectEditor({ project, catalogue, defaultCityId }: { project?:
           <Field label={t.portfolio.fields.area}>
             <Input inputMode="numeric" value={form.areaSqm} onChange={(e) => setForm((f) => ({ ...f, areaSqm: e.target.value.replace(/\D/g, '') }))} className="num" />
           </Field>
-          <Field label={t.portfolio.fields.brand}>
-            <Select value={form.brandId} onChange={set('brandId')}>
-              <option value="">—</option>
-              {catalogue.brands.map((b) => (
-                <option key={b.id} value={b.id}>
-                  {locale === 'ar' ? b.nameAr : b.name}
-                </option>
-              ))}
-            </Select>
-          </Field>
           <Field label={t.portfolio.fields.warranty}>
             <Input inputMode="numeric" value={form.warrantyMonths} onChange={(e) => setForm((f) => ({ ...f, warrantyMonths: e.target.value.replace(/\D/g, '') }))} className="num" />
           </Field>
         </div>
+        {products.length > 0 && (
+          <Field label={t.portfolio.fields.products} hint={t.portfolio.fields.productsHint}>
+            <div className="grid grid-cols-2 gap-space-xs sm:grid-cols-4">
+              {products.map((p) => {
+                const on = productIds.includes(p.id);
+                return (
+                  <button
+                    key={p.id}
+                    type="button"
+                    aria-pressed={on}
+                    onClick={() => setProductIds((ids) => (on ? ids.filter((x) => x !== p.id) : ids.length >= 6 ? ids : [...ids, p.id]))}
+                    className={`press flex items-center gap-2 rounded-xl border p-2 text-start text-label-md transition ${on ? 'border-primary-container bg-primary-container text-white' : 'border-line bg-surface-container-lowest text-on-surface hover:bg-canvas'}`}
+                  >
+                    {p.imageUrl ? <img src={p.imageUrl} alt="" className="size-9 shrink-0 rounded-lg object-cover" /> : <span className="size-9 shrink-0 rounded-lg" style={{ background: p.swatch }} />}
+                    <span className="line-clamp-2">{locale === 'ar' ? p.nameAr : p.nameEn}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </Field>
+        )}
         <Field label={t.portfolio.fields.colors}>
           <div className="flex flex-wrap gap-2">
             {colors.map((c, i) => (

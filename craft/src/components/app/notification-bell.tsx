@@ -34,7 +34,9 @@ export function NotificationBell() {
   return (
     <Link href="/app/notifications" aria-label={t.nav.notifications} className="press relative grid size-10 place-items-center rounded-xl text-ink-2 hover:bg-surface-2">
       <Bell className="size-5" />
-      {!!data?.unread && <span className="num absolute top-1 end-1 grid min-w-4 place-items-center rounded-full bg-danger px-1 text-[10px] font-semibold text-white">{data.unread > 9 ? '9+' : data.unread}</span>}
+      {!!data?.unread && <span className="absolute top-1 end-1 grid min-w-4 place-items-center rounded-full bg-danger px-1 text-[10px] font-semibold text-white">
+          <span className="num">{data.unread > 9 ? '9+' : data.unread}</span>
+        </span>}
     </Link>
   );
 }

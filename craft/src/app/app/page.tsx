@@ -237,7 +237,7 @@ export default async function HomePage() {
                 <circle cx={pin.x} cy={pin.y} r={42} fill="rgb(251 191 36 / 0.18)" />
                 <circle cx={pin.x} cy={pin.y} r={16} fill="#fbbf24" stroke="#00152a" strokeWidth={6} />
               </svg>
-              <span className="code-id absolute bottom-2 start-3 text-[10px] tracking-wider text-on-primary-container">
+              <span className="absolute bottom-2 start-3 text-[10px] tracking-wider text-on-primary-container [direction:ltr]">
                 N {d.city.lat.toFixed(4)}° · E {d.city.lng.toFixed(4)}°
               </span>
             </div>
@@ -269,7 +269,7 @@ export default async function HomePage() {
                 <article key={r.id} className="flex flex-col rounded-2xl bg-surface-container-lowest p-space-sm shadow-sm">
                   <div className="relative overflow-hidden rounded-xl">
                     <img src={`/rewards/${r.kind}.jpg`} alt="" loading="lazy" className="aspect-[16/10] w-full object-cover" />
-                    <span className="num absolute top-2 end-2 rounded-lg bg-primary-container/90 px-2 py-1 text-label-sm text-secondary-fixed-dim">{f(s.rewards.points, { n: fmtNumber(r.pointsCost) })}</span>
+                    <span className="absolute top-2 end-2 rounded-lg bg-primary-container/90 px-2 py-1 text-label-sm text-secondary-fixed-dim">{f(s.rewards.points, { n: fmtNumber(r.pointsCost) })}</span>
                   </div>
                   <div className="flex flex-1 flex-col px-space-xs pt-space-sm">
                     <h3 className="text-headline-sm text-primary">{locale === 'ar' ? r.titleAr : r.titleEn}</h3>
