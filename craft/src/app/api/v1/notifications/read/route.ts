@@ -2,11 +2,11 @@ import { and, eq, inArray, isNull } from 'drizzle-orm';
 import { z } from 'zod';
 import { db } from '@/db';
 import { notifications } from '@/db/schema';
-import { apiUser } from '@/lib/auth/guards';
+import { apiPortalUser } from '@/lib/auth/guards';
 import { ok, readJson, route } from '@/lib/http';
 
 export const POST = route(async (req) => {
-  const s = await apiUser();
+  const s = await apiPortalUser();
   const { ids } = await readJson(req, z.object({ ids: z.array(z.uuid()).max(100).optional() }));
   await db
     .update(notifications)

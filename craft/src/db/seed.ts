@@ -75,6 +75,12 @@ async function reset() {
 }
 
 async function main() {
+  // A launched database holds real members; the demo must never be written into it.
+  const [launched] = await db.select({ key: appSettings.key }).from(appSettings).where(eq(appSettings.key, 'launch'));
+  if (launched) {
+    console.log('Live database (launched): the demo seed does not run here.');
+    return;
+  }
   if (process.argv.includes('--reset')) await reset();
   const [{ n }] = await db.select({ n: count() }).from(craftsmen);
   if (n > 0) {

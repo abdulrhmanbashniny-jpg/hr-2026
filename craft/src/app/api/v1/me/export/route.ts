@@ -2,12 +2,12 @@ import { desc, eq } from 'drizzle-orm';
 import { NextResponse } from 'next/server';
 import { db } from '@/db';
 import { craftsmen, invoices, leads, notifications, pointsLedger, portfolioProjects, redemptions, referrals, users } from '@/db/schema';
-import { apiUser } from '@/lib/auth/guards';
+import { apiPortalUser } from '@/lib/auth/guards';
 import { route } from '@/lib/http';
 
 /** PDPL right of access: everything we hold about the signed-in person, as one JSON file. */
 export const GET = route(async () => {
-  const s = await apiUser();
+  const s = await apiPortalUser();
   const [user] = await db.select({ id: users.id, phone: users.phone, name: users.name, locale: users.locale, createdAt: users.createdAt }).from(users).where(eq(users.id, s.user.id));
   const c = s.craftsman;
   const [profile] = c ? await db.select().from(craftsmen).where(eq(craftsmen.id, c.id)) : [];

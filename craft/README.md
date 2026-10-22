@@ -55,7 +55,7 @@ npm run db:setup            # migrations + demo seed
 npm run dev                 # http://localhost:3000
 ```
 
-Sign in with a phone number. With `SMS_DRIVER=console` the code is printed in the server log and, outside production, shown on the sign-in screen.
+Sign in with a phone number and password. The demo accounts have no password yet, so sign them in with an SMS code: with `SMS_DRIVER=console` it is printed in the server log and, outside production, shown on the sign-in screen (choose **Sign in with an SMS code instead**). Set a password afterwards from the key icon next to **Sign out**.
 
 | Demo account | Phone |
 | --- | --- |
@@ -74,6 +74,7 @@ The seed creates 34 craftsmen across the Kingdom, a referral tree, illustrated p
 | `npm run dev` / `build` / `start` | Next.js |
 | `npm run typecheck` · `npm test` | TypeScript · Vitest (57 tests: codes, phone/ID/VAT, ZATCA TLV and secp256k1 signatures, incentives, fraud scoring, trust score, estimator, sniffing) |
 | `npm run db:generate` · `db:migrate` · `db:seed` · `db:setup` | Drizzle migrations and the demo seed |
+| `LAUNCH_ADMIN_PHONE=05… npm run db:launch -- --confirm` | Go live: empty all demo and user data (reference data and settings stay), create the owner's super-admin account with a one-time password. Runs once per database; the demo seed refuses a launched database. |
 | `npm run vapid` | Print a VAPID key pair for Web Push |
 | `npm run demo:invoice -- 1897.50 --svg qr.svg` | Issue a signed demo ZATCA QR from a seeded dealer |
 | `npm run assets` | Re-render icons, OG image and seed scenes (needs Playwright) |
@@ -83,10 +84,10 @@ The seed creates 34 craftsmen across the Kingdom, a referral tree, illustrated p
 
 **Vercel + managed PostgreSQL (Supabase, Neon, RDS) + Cloudflare R2:**
 
-1. Import the repository with the root directory set to `craft`. `vercel-build` applies migrations on every deploy and seeds when `SEED_ON_BUILD=true`.
+1. Import the repository with the root directory set to `craft`. `vercel-build` applies migrations on every deploy and seeds the demo when `SEED_ON_BUILD=true` (never on a launched database). To go live, turn `SEED_ON_BUILD` off and run `db:launch` once against the production database.
 2. Set `DATABASE_URL` (a pooled connection string), `DATABASE_SSL=true`, `AUTH_SECRET`, `APP_ENCRYPTION_KEY`, `CRON_SECRET`, and `STORAGE_DRIVER=s3` with the `S3_*` variables (R2: `S3_ENDPOINT=https://<account>.r2.cloudflarestorage.com`, `S3_REGION=auto`; allow `PUT` from your domain in the bucket's CORS). Optionally `MEDIA_PUBLIC_BASE_URL` for a CDN in front of public media.
-3. SMS: `SMS_DRIVER=unifonic` (`UNIFONIC_APP_SID`, `UNIFONIC_SENDER_ID`) or `twilio`.
-4. Invoice reading: `ANTHROPIC_API_KEY` (model in `INVOICE_AI_MODEL`, default `claude-opus-5-5`). Without it, the QR path and human review still work.
+3. Sign-in works with phone and password and needs no provider; staff issue one-time passwords for forgotten ones from the craftsman's page in the console. SMS codes are an optional second way in: `SMS_DRIVER=unifonic` (`UNIFONIC_APP_SID`, `UNIFONIC_SENDER_ID`) or `twilio`. Keep `ALLOW_DEV_OTP` unset in production; with it, the code is shown on screen to whoever types a number.
+4. Invoice reading: `ANTHROPIC_API_KEY` (model in `INVOICE_AI_MODEL`). Without it, the QR path and human review still work.
 5. Web Push: `NEXT_PUBLIC_VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT`. Google Wallet: `GOOGLE_WALLET_ISSUER_ID`, `GOOGLE_WALLET_SA_EMAIL`, `GOOGLE_WALLET_SA_PRIVATE_KEY`.
 6. `vercel.json` pins functions to `fra1` and runs `/api/cron/sweep` daily.
 
@@ -94,7 +95,7 @@ The seed creates 34 craftsmen across the Kingdom, a referral tree, illustrated p
 
 ## Security & data protection
 
-Phone OTP with HMAC-stored codes, attempt limits and per-number/per-IP rate limits in the database; revocable server-side sessions behind an httpOnly signed cookie; role and ownership checks in every service; same-origin checks on cookie-authenticated mutations; per-request CSP nonce with `strict-dynamic`; IP addresses stored only as keyed hashes; national IDs and voucher codes encrypted with AES-256-GCM; invoice and identity images private (owner and staff, audit-logged); spreadsheet exports neutralise formula injection; row-level security enabled on every table. Craftsmen can download all their data and request deletion (PDPL). Details in [docs/ARCHITECTURE.md §5](docs/ARCHITECTURE.md).
+Phone and password (scrypt, per-number and per-network guess limits, the same answer for unknown numbers and wrong passwords, one-time passwords from staff that must be replaced at the next sign-in) and optional SMS codes with HMAC-stored codes, attempt limits and per-number/per-IP rate limits in the database; revocable server-side sessions behind an httpOnly signed cookie; role and ownership checks in every service; same-origin checks on cookie-authenticated mutations; per-request CSP nonce with `strict-dynamic`; IP addresses stored only as keyed hashes; national IDs and voucher codes encrypted with AES-256-GCM; invoice and identity images private (owner and staff, audit-logged); spreadsheet exports neutralise formula injection; row-level security enabled on every table. Craftsmen can download all their data and request deletion (PDPL). Details in [docs/ARCHITECTURE.md §5](docs/ARCHITECTURE.md).
 
 ## Not in this milestone
 

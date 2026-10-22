@@ -2,7 +2,7 @@ import type { Metadata } from 'next';
 import type { ReactNode } from 'react';
 import { NotificationBell } from '@/components/app/notification-bell';
 import { PortalShell, type ShellItem } from '@/components/shell/portal-shell';
-import { requireUserPage } from '@/lib/auth/guards';
+import { requirePortalPage } from '@/lib/auth/guards';
 import { getI18n } from '@/lib/i18n';
 import { mediaUrl } from '@/lib/storage';
 
@@ -12,7 +12,7 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 export default async function AppLayout({ children }: { children: ReactNode }) {
-  const s = await requireUserPage('/app');
+  const s = await requirePortalPage('/app');
   if (!s.craftsman) return <div className="min-h-dvh bg-surface">{children}</div>;
   const { t } = await getI18n();
   const c = s.craftsman;

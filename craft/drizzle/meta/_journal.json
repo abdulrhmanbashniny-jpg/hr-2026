@@ -29,6 +29,13 @@
       "when": 1792634184537,
       "tag": "0003_craftsman_district",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1792673413236,
+      "tag": "0004_password_login",
+      "breakpoints": true
     }
   ]
 }

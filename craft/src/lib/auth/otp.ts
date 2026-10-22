@@ -23,7 +23,16 @@ function exposeDevCode(): boolean {
   return env.sms.driver === 'console' && (!isProduction || process.env.ALLOW_DEV_OTP === 'true');
 }
 
+/**
+ * SMS sign-in needs a real SMS provider, or development, where the code is shown on screen. In
+ * production without a provider it is off, and phone and password is the way in.
+ */
+export function smsSignInAvailable(): boolean {
+  return env.sms.driver !== 'console' || exposeDevCode();
+}
+
 export async function requestOtp(rawPhone: string, locale: 'ar' | 'en') {
+  if (!smsSignInAvailable()) throw new ApiError('sms_unavailable');
   const phone = normalizeSaudiMobile(rawPhone);
   if (!phone) throw new ApiError('invalid_phone');
   const fp = await requestFingerprint();
@@ -88,9 +97,11 @@ export async function verifyOtp(challengeId: string, rawCode: string): Promise<{
 
   let [user] = await db.select().from(users).where(eq(users.phone, c.phone));
   const isNew = !user;
-  if (!user) [user] = await db.insert(users).values({ phone: c.phone }).onConflictDoNothing().returning();
+  if (!user) [user] = await db.insert(users).values({ phone: c.phone, phoneVerifiedAt: new Date() }).onConflictDoNothing().returning();
   if (!user) [user] = await db.select().from(users).where(eq(users.phone, c.phone));
   if (user.status === 'suspended') throw new ApiError('account_suspended');
+  // The code reached this number: it is proven theirs.
+  if (!user.phoneVerifiedAt) await db.update(users).set({ phoneVerifiedAt: new Date() }).where(eq(users.id, user.id));
 
   await createSession(user.id);
   await recordSignal(user.id, isNew ? 'signup' : 'login', await requestFingerprint());

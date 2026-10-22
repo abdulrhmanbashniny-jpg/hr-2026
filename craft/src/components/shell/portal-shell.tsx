@@ -10,6 +10,7 @@ import {
   IdCard,
   Images,
   LayoutDashboard,
+  KeyRound,
   LogOut,
   Map as MapIcon,
   Megaphone,
@@ -155,10 +156,21 @@ function SidebarBody({ items, root, portalName, status, cta, onNavigate }: Pick<
         </div>
         <div className="flex items-center justify-between">
           <LanguageSwitch />
-          <button onClick={() => signOut(router)} className="press inline-flex h-9 items-center gap-1.5 rounded-xl px-3 text-label-md text-on-surface-variant hover:bg-error-container hover:text-error">
-            <LogOut className="size-4" />
-            {t.common.signOut}
-          </button>
+          <div className="flex items-center gap-0.5">
+            <Link
+              href="/account/password"
+              onClick={onNavigate}
+              aria-label={t.auth.changeTitle}
+              title={t.auth.changeTitle}
+              className="press grid size-9 place-items-center rounded-xl text-on-surface-variant hover:bg-surface-container hover:text-primary"
+            >
+              <KeyRound className="size-4" />
+            </Link>
+            <button onClick={() => signOut(router)} className="press inline-flex h-9 items-center gap-1.5 whitespace-nowrap rounded-xl px-3 text-label-md text-on-surface-variant hover:bg-error-container hover:text-error">
+              <LogOut className="size-4" />
+              {t.common.signOut}
+            </button>
+          </div>
         </div>
       </div>
     </div>

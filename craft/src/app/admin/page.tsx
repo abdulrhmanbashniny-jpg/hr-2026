@@ -64,8 +64,10 @@ export default async function ConsoleOverview({ searchParams }: { searchParams: 
   const k = o.kpis;
   const growth = k.newBefore ? Math.round(((k.newNow - k.newBefore) / k.newBefore) * 100) : null;
   const confirmRate = k.referrals ? Math.round((k.confirmed / k.referrals) * 100) : 0;
-  const totalTiers = o.tiers.A + o.tiers.B + o.tiers.C || 1;
-  const topRegion = [...o.regions].sort((a, b) => b.referrals_now - a.referrals_now || b.craftsmen - a.craftsmen)[0];
+  const tierCount = o.tiers.A + o.tiers.B + o.tiers.C;
+  const totalTiers = tierCount || 1;
+  // No region is the busiest before anyone has joined.
+  const topRegion = [...o.regions].filter((r) => r.referrals_now > 0 || r.craftsmen > 0).sort((a, b) => b.referrals_now - a.referrals_now || b.craftsmen - a.craftsmen)[0];
   const name = (x: { name_ar: string; name_en: string }) => (locale === 'ar' ? x.name_ar : x.name_en);
 
   // Donut segments
@@ -229,7 +231,7 @@ export default async function ConsoleOverview({ searchParams }: { searchParams: 
               ))}
             </svg>
             <div className="absolute text-center">
-              <div className="num text-headline-md text-primary">{fmtNumber(totalTiers)}</div>
+              <div className="num text-headline-md text-primary">{fmtNumber(tierCount)}</div>
               <div className="text-label-sm text-muted">{s.tiers.total}</div>
             </div>
           </div>

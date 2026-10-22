@@ -2,13 +2,14 @@
 
 import { useRouter } from 'next/navigation';
 import { useState, useTransition } from 'react';
-import { Trash2 } from 'lucide-react';
-import { adjustPointsAction, removeCraftsmanPhotoAction, setTierAction } from '@/app/admin/actions';
+import { BadgeCheck, CircleAlert, Copy, KeyRound, MessageCircle, Trash2 } from 'lucide-react';
+import { adjustPointsAction, confirmPhoneAction, removeCraftsmanPhotoAction, resetPasswordAction, setTierAction } from '@/app/admin/actions';
 import { Avatar } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Field, Input } from '@/components/ui/field';
 import { useToast } from '@/components/ui/toast';
 import { cn } from '@/lib/cn';
+import { f } from '@/lib/i18n/format';
 import { useI18n } from '@/lib/i18n/client';
 import { useConsole } from './console-i18n';
 
@@ -125,6 +126,96 @@ export function PhotoAdmin({ craftsmanId, name, photoUrl, canManage }: { craftsm
         </button>
       ) : (
         !photoUrl && <span className="text-label-sm text-muted">{c.craftsmen.noPhoto}</span>
+      )}
+    </div>
+  );
+}
+
+/**
+ * Account access without SMS: confirm the number once staff have reached the owner on it, and issue
+ * a one-time password (shown once) to send to that number when the craftsman forgets theirs.
+ */
+export function AccessAdmin({ userId, phone, phoneVerified, canManage, brand, appUrl }: { userId: string; phone: string; phoneVerified: boolean; canManage: boolean; brand: string; appUrl: string }) {
+  const c = useConsole();
+  const toast = useToast();
+  const router = useRouter();
+  const [pending, start] = useTransition();
+  const [temp, setTemp] = useState<string | null>(null);
+  const waDigits = phone.replace(/^\+/, '');
+  const message = temp ? f(c.craftsmen.whatsappMessage, { brand, password: temp, url: `${appUrl}/login` }) : '';
+
+  return (
+    <div className="space-y-3">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <span className={cn('inline-flex items-center gap-1.5 text-label-md font-semibold', phoneVerified ? 'text-[#047857]' : 'text-warning')}>
+          {phoneVerified ? <BadgeCheck className="size-4" /> : <CircleAlert className="size-4" />}
+          {phoneVerified ? c.craftsmen.phoneConfirmed : c.craftsmen.phoneUnconfirmed}
+        </span>
+        {canManage && (
+          <Button
+            variant="secondary"
+            size="sm"
+            loading={pending}
+            onClick={() =>
+              start(async () => {
+                const r = await confirmPhoneAction(userId, !phoneVerified);
+                if (r.ok) router.refresh();
+                else toast(r.error, 'error');
+              })
+            }
+          >
+            {phoneVerified ? c.craftsmen.unconfirmPhone : c.craftsmen.confirmPhone}
+          </Button>
+        )}
+      </div>
+      {!phoneVerified && <p className="text-body-sm text-muted">{c.craftsmen.phoneHelp}</p>}
+
+      {canManage && !temp && (
+        <Button
+          variant="secondary"
+          size="sm"
+          icon={<KeyRound className="size-4" />}
+          loading={pending}
+          onClick={() => {
+            if (!confirm(c.craftsmen.resetConfirm)) return;
+            start(async () => {
+              const r = await resetPasswordAction(userId);
+              if (r.ok) setTemp(r.password);
+              else toast(r.error, 'error');
+            });
+          }}
+        >
+          {c.craftsmen.resetPassword}
+        </Button>
+      )}
+
+      {temp && (
+        <div className="space-y-2 rounded-xl border border-dashed border-accent bg-accent-soft p-3">
+          <div className="text-label-md font-semibold text-primary">{c.craftsmen.tempTitle}</div>
+          <div className="num select-all text-center text-headline-sm tracking-[0.15em] text-ink" dir="ltr">
+            {temp}
+          </div>
+          <p className="text-body-sm text-muted">{c.craftsmen.tempHelp}</p>
+          <div className="flex flex-wrap gap-2">
+            <Button
+              variant="secondary"
+              size="sm"
+              icon={<Copy className="size-4" />}
+              onClick={() => navigator.clipboard?.writeText(temp).then(() => toast(c.craftsmen.copied), () => undefined)}
+            >
+              {c.craftsmen.copy}
+            </Button>
+            <a
+              href={`https://wa.me/${waDigits}?text=${encodeURIComponent(message)}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="press inline-flex h-9 items-center gap-1.5 rounded-xl bg-[#047857] px-3 text-label-md text-white hover:brightness-110"
+            >
+              <MessageCircle className="size-4" />
+              {c.craftsmen.sendWhatsapp}
+            </a>
+          </div>
+        </div>
       )}
     </div>
   );

@@ -1,23 +1,25 @@
 import { countDistinct, desc, eq, inArray } from 'drizzle-orm';
-import { BadgeCheck, Ban, ExternalLink, FileText, Network, ShieldCheck, Smartphone } from 'lucide-react';
+import { BadgeCheck, Ban, ExternalLink, FileText, KeyRound, Network, ShieldCheck, Smartphone } from 'lucide-react';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { db } from '@/db';
 import { cities, craftsmen, deviceSignals, invoices, pointsLedger, portfolioProjects, referrals, users, verificationDocuments, wallets } from '@/db/schema';
 import { reviewDocumentAction, setSuspendedAction, verifyProjectAction } from '@/app/admin/actions';
 import { ActionButton } from '@/components/admin/action-button';
-import { AdjustForm, PhotoAdmin, TierForm } from '@/components/admin/craftsman-controls';
+import { AccessAdmin, AdjustForm, PhotoAdmin, TierForm } from '@/components/admin/craftsman-controls';
 import { LedgerList } from '@/components/app/ledger-list';
 import { Avatar } from '@/components/ui/avatar';
 import { Badge, type Tone } from '@/components/ui/badge';
 import { ButtonLink } from '@/components/ui/button';
 import { Card, CardHeader } from '@/components/ui/card';
 import { requireStaffPage } from '@/lib/auth/guards';
+import { env } from '@/lib/env';
 import { staffCan } from '@/lib/auth/roles';
 import { formatLocal } from '@/lib/phone';
 import { mediaUrl } from '@/lib/storage';
 import { f, fmtDate, fmtMoney, fmtNumber, getI18n } from '@/lib/i18n';
 import { consoleDictionary } from '@/lib/i18n/console';
+import { getBrand } from '@/lib/products/service';
 
 const STATUS_TONE: Record<string, Tone> = { unverified: 'neutral', pending: 'info', verified: 'success', rejected: 'danger', approved: 'success', flagged: 'warning', processing: 'info', activated: 'success', held: 'warning' };
 
@@ -49,6 +51,7 @@ export default async function CraftsmanDetail({ params }: { params: Promise<{ id
       .groupBy(deviceSignals.deviceId),
   ]);
   const shared = Math.max(0, ...devices.map((d) => d.others - 1));
+  const brand = await getBrand();
   const suspended = row.user.status === 'suspended';
 
   return (
@@ -164,6 +167,17 @@ export default async function CraftsmanDetail({ params }: { params: Promise<{ id
             <div className="text-xs text-muted">
               {t.home.lifetime}: <span className="num">{fmtNumber(row.wallet?.lifetimeEarned ?? 0)}</span>
             </div>
+          </Card>
+          <Card>
+            <CardHeader title={c.craftsmen.access} icon={<KeyRound className="size-5" />} />
+            <AccessAdmin
+              userId={row.user.id}
+              phone={row.user.phone}
+              phoneVerified={!!row.user.phoneVerifiedAt}
+              canManage={canManage}
+              brand={locale === 'ar' ? brand.factoryNameAr : brand.factoryNameEn}
+              appUrl={env.appUrl}
+            />
           </Card>
           {canManage && (
             <Card>

@@ -2,9 +2,10 @@ import { MapPin } from 'lucide-react';
 import type { Metadata } from 'next';
 import { redirect } from 'next/navigation';
 import { AuthShell } from '@/components/auth/auth-shell';
-import { LoginForm } from '@/components/auth/login-form';
+import { RegisterForm } from '@/components/auth/register-form';
 import { MembershipCard } from '@/components/card/membership-card';
 import { Avatar } from '@/components/ui/avatar';
+import { isStaff } from '@/lib/auth/roles';
 import { getSession } from '@/lib/auth/session';
 import { parseReferralCode } from '@/lib/codes/damm';
 import { getPublicProfile } from '@/lib/craftsmen/public';
@@ -21,7 +22,7 @@ export default async function JoinPage({ searchParams }: { searchParams: Promise
   const ref = parseReferralCode((await searchParams).ref ?? '');
   const referrer = ref.ok ? await getPublicProfile(ref.code) : null;
   const s = await getSession();
-  if (s) redirect(s.craftsman ? '/app' : '/app/onboarding');
+  if (s) redirect(isStaff(s.user.role) ? '/admin' : s.craftsman ? '/app' : '/app/onboarding');
   return (
     <AuthShell
       aside={
@@ -42,9 +43,9 @@ export default async function JoinPage({ searchParams }: { searchParams: Promise
           </div>
         </div>
       )}
-      <h1 className="text-3xl font-bold">{t.onboarding.title}</h1>
-      <p className="mt-2 mb-8 text-muted">{t.auth.subtitle}</p>
-      <LoginForm next="/app/onboarding" />
+      <h1 className="text-3xl font-bold">{t.auth.registerTitle}</h1>
+      <p className="mt-2 mb-8 text-muted">{t.auth.registerSubtitle}</p>
+      <RegisterForm />
     </AuthShell>
   );
 }

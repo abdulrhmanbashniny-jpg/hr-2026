@@ -77,6 +77,13 @@ export const users = pgTable('users', {
   role: userRoleEnum('role').notNull().default('craftsman'),
   status: userStatusEnum('status').notNull().default('active'),
   locale: text('locale').notNull().default('ar'),
+  /** scrypt, see lib/auth/password. Null until the user sets one (accounts made through SMS codes). */
+  passwordHash: text('password_hash'),
+  passwordChangedAt: ts('password_changed_at'),
+  /** Set when staff issue a temporary password; every portal page sends the user to change it first. */
+  mustChangePassword: boolean('must_change_password').notNull().default(false),
+  /** Proven by an SMS code, or confirmed by staff who reached the number. Sign-up by password alone does not prove it. */
+  phoneVerifiedAt: ts('phone_verified_at'),
   lastLoginAt: ts('last_login_at'),
   createdAt: createdAt(),
 });

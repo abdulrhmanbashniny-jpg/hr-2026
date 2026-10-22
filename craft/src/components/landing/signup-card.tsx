@@ -4,7 +4,7 @@ import { ArrowRight, BadgeCheck, CircleCheck, Lock, MapPin, ShieldCheck, Smartph
 import { AnimatePresence, motion } from 'motion/react';
 import Link from 'next/link';
 import { useEffect, useRef, useState } from 'react';
-import { LoginForm } from '@/components/auth/login-form';
+import { RegisterForm } from '@/components/auth/register-form';
 import { saveSignupDraft, loadSignupDraft } from '@/components/auth/signup-draft';
 import { Dialog } from '@/components/ui/dialog';
 import { api, ApiClientError } from '@/lib/api-client';
@@ -244,7 +244,7 @@ export function SignupCard({ cities, welcomeBonus, initialRef }: { cities: CityO
                 {s.signup.editDetails}
               </button>
             </div>
-            <LoginForm next="/app/onboarding" initialPhone={phone} autoSend />
+            <RegisterForm initialPhone={phone} autoFocusPassword />
           </motion.div>
         )}
       </AnimatePresence>

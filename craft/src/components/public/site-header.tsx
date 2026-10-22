@@ -5,6 +5,7 @@ import { getSession } from '@/lib/auth/session';
 import { isStaff } from '@/lib/auth/roles';
 import { getI18n } from '@/lib/i18n';
 import { landingStrings } from '@/lib/i18n/pages/landing';
+import { listActiveProducts } from '@/lib/products/service';
 import { HeaderMenu, HeaderSearch } from './header-menu';
 import { LanguageSwitch } from './language-switch';
 
@@ -15,12 +16,14 @@ export async function SiteHeader({ search = true }: { search?: boolean }) {
   const session = await getSession().catch(() => null);
   const staff = session ? isStaff(session.user.role) : false;
   const portal = session ? (staff ? '/admin' : '/app') : null;
+  // The products section only exists once the factory has added some.
+  const hasProducts = (await listActiveProducts().catch(() => [])).length > 0;
   const links = [
     { href: '/#top', label: s.header.nav.home },
     { href: '/#about', label: s.header.nav.about },
     { href: '/#how', label: s.header.nav.how },
     { href: '/#rewards', label: s.header.nav.rewards },
-    { href: '/#products', label: s.header.nav.products },
+    ...(hasProducts ? [{ href: '/#products', label: s.header.nav.products }] : []),
     { href: '/#contact', label: s.header.nav.contact },
   ];
   return (

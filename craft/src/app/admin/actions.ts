@@ -8,6 +8,7 @@ import { isUniqueViolation } from '@/db/errors';
 import { cities, craftsmen, dealers, fraudFlags, incentiveRules, invoices, portfolioProjects, referrals, rewards, sessions, users } from '@/db/schema';
 import { audit } from '@/lib/audit';
 import { apiStaff } from '@/lib/auth/guards';
+import { confirmPhoneByStaff, resetPasswordByStaff } from '@/lib/auth/password-login';
 import type { StaffPermission } from '@/lib/auth/roles';
 import { removeAvatar } from '@/lib/craftsmen/avatar';
 import { invalidateProfile } from '@/lib/craftsmen/service';
@@ -34,11 +35,38 @@ async function run(permission: StaffPermission, fn: (actorId: string) => Promise
     for (const p of paths) revalidatePath(p, 'layout');
     return { ok: true };
   } catch (err) {
-    const t = dictionary(await getLocale());
-    if (err instanceof ApiError) return { ok: false, error: t.errors[err.code] ?? t.errors.generic };
-    if (err instanceof z.ZodError) return { ok: false, error: t.errors.validation };
-    console.error('[admin action]', err);
-    return { ok: false, error: t.errors.generic };
+    return failure(err);
+  }
+}
+
+async function failure(err: unknown): Promise<{ ok: false; error: string }> {
+  const t = dictionary(await getLocale());
+  if (err instanceof ApiError) return { ok: false, error: t.errors[err.code] ?? t.errors.generic };
+  if (err instanceof z.ZodError) return { ok: false, error: t.errors.validation };
+  console.error('[admin action]', err);
+  return { ok: false, error: t.errors.generic };
+}
+
+/** A one-time password for a user who forgot theirs; returned once for staff to hand over, never stored in clear. */
+export async function resetPasswordAction(userId: string): Promise<{ ok: true; password: string } | { ok: false; error: string }> {
+  try {
+    const s = await apiStaff('craftsmen:manage');
+    const password = await resetPasswordByStaff({ id: s.user.id, role: s.user.role }, z.uuid().parse(userId));
+    revalidatePath('/admin/craftsmen', 'layout');
+    return { ok: true, password };
+  } catch (err) {
+    return failure(err);
+  }
+}
+
+export async function confirmPhoneAction(userId: string, confirmed: boolean): Promise<ActionResult> {
+  try {
+    const s = await apiStaff('craftsmen:manage');
+    await confirmPhoneByStaff({ id: s.user.id, role: s.user.role }, z.uuid().parse(userId), z.boolean().parse(confirmed));
+    revalidatePath('/admin/craftsmen', 'layout');
+    return { ok: true };
+  } catch (err) {
+    return failure(err);
   }
 }
 

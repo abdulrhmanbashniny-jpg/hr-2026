@@ -1,5 +1,5 @@
 import { eq } from 'drizzle-orm';
-import { ExternalLink } from 'lucide-react';
+import { ExternalLink, KeyRound } from 'lucide-react';
 import { db } from '@/db';
 import { craftsmen } from '@/db/schema';
 import { ProfileForm } from '@/components/app/profile-form';
@@ -16,9 +16,14 @@ export default async function ProfilePage() {
     <div className="space-y-6">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <h1 className="text-2xl font-bold sm:text-3xl">{t.profileEdit.title}</h1>
-        <ButtonLink href={`/c/${c.referralCode}`} variant="secondary" icon={<ExternalLink className="size-4" />}>
-          {t.profile.verifiedBy}
-        </ButtonLink>
+        <div className="flex flex-wrap gap-2">
+          <ButtonLink href="/account/password?next=/app/profile" variant="secondary" icon={<KeyRound className="size-4" />}>
+            {t.auth.changeTitle}
+          </ButtonLink>
+          <ButtonLink href={`/c/${c.referralCode}`} variant="secondary" icon={<ExternalLink className="size-4" />}>
+            {t.profile.verifiedBy}
+          </ButtonLink>
+        </div>
       </div>
       <ProfileForm
         catalogue={{ cities, trades }}

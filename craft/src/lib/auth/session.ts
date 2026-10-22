@@ -60,7 +60,7 @@ export async function destroySession() {
 
 export interface SessionContext {
   sessionId: string;
-  user: { id: string; phone: string; name: string | null; role: UserRole; locale: string; suspended: boolean };
+  user: { id: string; phone: string; name: string | null; role: UserRole; locale: string; suspended: boolean; mustChangePassword: boolean; phoneVerified: boolean };
   craftsman: { id: string; referralCode: string; displayName: string; tier: Tier; cityId: string; avatarKey: string | null; createdAt: Date } | null;
 }
 
@@ -80,7 +80,16 @@ export const getSession = cache(async (): Promise<SessionContext | null> => {
     .where(eq(craftsmen.userId, row.user.id));
   return {
     sessionId: row.session.id,
-    user: { id: row.user.id, phone: row.user.phone, name: row.user.name, role: row.user.role, locale: row.user.locale, suspended: row.user.status === 'suspended' },
+    user: {
+      id: row.user.id,
+      phone: row.user.phone,
+      name: row.user.name,
+      role: row.user.role,
+      locale: row.user.locale,
+      suspended: row.user.status === 'suspended',
+      mustChangePassword: row.user.mustChangePassword,
+      phoneVerified: !!row.user.phoneVerifiedAt,
+    },
     craftsman: c ?? null,
   };
 });

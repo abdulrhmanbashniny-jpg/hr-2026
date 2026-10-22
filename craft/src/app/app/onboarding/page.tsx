@@ -3,13 +3,13 @@ import { redirect } from 'next/navigation';
 import { Logo } from '@/components/brand/icons';
 import { OnboardingForm } from '@/components/app/onboarding-form';
 import { LanguageSwitch } from '@/components/public/language-switch';
-import { requireUserPage } from '@/lib/auth/guards';
+import { requirePortalPage } from '@/lib/auth/guards';
 import { isStaff } from '@/lib/auth/roles';
 import { catalogue } from '@/lib/catalogue';
 import { getI18n } from '@/lib/i18n';
 
 export default async function OnboardingPage() {
-  const s = await requireUserPage('/app/onboarding');
+  const s = await requirePortalPage('/app/onboarding');
   if (s.craftsman) redirect('/app');
   if (isStaff(s.user.role)) redirect('/admin');
   const { t } = await getI18n();

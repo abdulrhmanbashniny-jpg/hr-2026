@@ -156,7 +156,10 @@ Conventions:
 ### Auth
 | Method & path | Body | Result |
 | --- | --- | --- |
-| `POST /auth/otp` | `{ phone }` | `{ challengeId, expiresAt, resendAt, devCode? }` — 3 per 10 min per number, 10 per hour per IP. `devCode` only with the console SMS driver outside production. |
+| `POST /auth/password` | `{ phone, password, next? }` | Sets the session cookie. `{ userId, role, next }`; `next` is the password page while a staff-issued one-time password is in force. `invalid_credentials` for an unknown number and a wrong password alike; 6 guesses per 15 min per number and network, 60 per day per number, 40 per hour per network. |
+| `POST /auth/register` | `{ phone, password }` | New craftsman account, signed in, `next: /app/onboarding`. `phone_taken` if the number exists (recovery goes through staff). 5 per hour per network. |
+| `POST /me/password` | `{ current?, password, next? }` | Changes the password (`current` required when one exists), signs out every other session. The only call allowed while a one-time password is in force. |
+| `POST /auth/otp` | `{ phone }` | `{ challengeId, expiresAt, resendAt, devCode? }` — 3 per 10 min per number, 10 per hour per IP. `503 sms_unavailable` in production without an SMS provider. `devCode` only with the console SMS driver outside production (or `ALLOW_DEV_OTP`). |
 | `POST /auth/verify` | `{ challengeId, code }` | Sets the session cookie. `{ user, next }` where `next` is `/app/onboarding` for new craftsmen. |
 | `POST /auth/logout` | — | Revokes the session. |
 | `GET /me` | — | Current user, craftsman summary, wallet balance. |
@@ -217,7 +220,7 @@ Files are at most 5 MB, so a single PUT is used; S3 multipart only starts at 5 M
 
 ## 5. Security & data protection (Saudi PDPL) — **Shipped**
 
-* **Identity:** phone OTP (HMAC-stored codes, 5 attempts, 5-minute expiry, per-number and per-IP limits). SMS through Unifonic or Twilio; console driver in development.
+* **Identity:** phone and password: scrypt (N=2^15, r=8, p=1, per-user salt, parameters stored with the hash), Arabic-Indic digits normalised, length 8–128 and an obvious-password check, constant-time comparison with a decoy hash for unknown numbers. A password sign-up does not prove the number: `users.phone_verified_at` is set by an SMS code or by staff who reached the owner, and the console shows it next to every craftsman. Forgotten passwords: staff issue a one-time password (shown once, sent on the number on file), every session is revoked, and every portal page and API refuses the account until it is replaced. Optional SMS codes (HMAC-stored, 5 attempts, 5-minute expiry, per-number and per-IP limits) through Unifonic or Twilio; console driver in development.
 * **Sessions:** random server-side ids behind an HS256-signed, httpOnly, `SameSite=Lax`, `Secure` cookie; revocable; 30 days.
 * **Authorisation:** role checks in every service (`requireRole`), ownership checks on every craftsman resource, staff actions audit-logged.
 * **CSRF:** same-origin `Origin` check on all cookie-authenticated mutations; server actions get Next.js's built-in origin check.
@@ -239,7 +242,7 @@ Files are at most 5 MB, so a single PUT is used; S3 multipart only starts at 5 M
 ### Screens
 | Area | Screens |
 | --- | --- |
-| Public | Landing with universal search, craftsman profile `/c/{code}`, sign-in/sign-up (OTP), join via referral link. |
+| Public | Landing with universal search, craftsman profile `/c/{code}`, sign-in and sign-up (phone and password; SMS code when a provider is connected), join via referral link. |
 | Craftsman `/app` | Home (card, wallet, next reward, trust score, leads, recent activity), invoices (camera + QR scan), portfolio (projects, media, before/after), rewards marketplace, referrals network, full-screen card (NFC write, Google Wallet, vCard), profile and verification documents, notifications. |
 | Console `/admin` | Overview (KPIs, liability, trends), invoice review queue with batch approval, craftsmen (tiering, verification, adjustments), fraud clusters and flags, incentive configurator with live preview, rewards and redemptions, dealers and pinned keys, KSA heatmap, reports and exports, settings. |
 

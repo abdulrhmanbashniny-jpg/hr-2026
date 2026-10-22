@@ -35,6 +35,9 @@ import { landingStrings } from '@/lib/i18n/pages/landing';
 
 export const dynamic = 'force-dynamic';
 
+/** Below this, member counts read as "empty": the hero shows what joining offers instead. */
+const EARLY_MEMBERS = 20;
+
 const REWARD_ICON = { fuel_voucher: CreditCard, supplier_discount: PaintBucket, tool: Wrench, cash_out: Wallet, other: Gift } as const;
 
 function Eyebrow({ children }: { children: React.ReactNode }) {
@@ -112,13 +115,20 @@ export default async function LandingPage({ searchParams }: { searchParams: Prom
               </div>
 
               <div className="mt-space-xl grid grid-cols-3 gap-space-sm">
-                {[
-                  { value: `${fmtNumber(data.members.total)}+`, label: s.hero.members },
-                  { value: `${verifiedPct}%`, label: s.hero.verified },
-                  { value: s.hero.instant, label: s.hero.instantLabel },
-                ].map((x) => (
+                {(data.members.total >= EARLY_MEMBERS
+                  ? [
+                      { value: `${fmtNumber(data.members.total)}+`, label: s.hero.members },
+                      { value: `${verifiedPct}%`, label: s.hero.verified },
+                      { value: s.hero.instant, label: s.hero.instantLabel },
+                    ]
+                  : [
+                      { value: s.hero.freeValue, label: s.hero.freeLabel },
+                      { value: s.hero.worksValue, label: s.hero.worksLabel },
+                      { value: s.hero.instant, label: s.hero.instantLabel },
+                    ]
+                ).map((x) => (
                   <div key={x.label} className="rounded-xl border border-line bg-surface-container-lowest p-space-md shadow-sm">
-                    <div className="num text-headline-lg-mobile text-primary sm:text-headline-lg">{x.value}</div>
+                    <div className={`${/\d/.test(x.value) ? 'num ' : ''}text-headline-lg-mobile text-primary sm:text-headline-lg`}>{x.value}</div>
                     <div className="mt-1 text-label-sm text-on-surface-variant">{x.label}</div>
                   </div>
                 ))}

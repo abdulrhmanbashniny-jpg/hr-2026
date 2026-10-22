@@ -3,7 +3,7 @@ import Link from 'next/link';
 import { LogoMark } from '@/components/brand/icons';
 import { f, getI18n } from '@/lib/i18n';
 import { landingStrings } from '@/lib/i18n/pages/landing';
-import { getBrand } from '@/lib/products/service';
+import { getBrand, listActiveProducts } from '@/lib/products/service';
 import { LanguageSwitch } from './language-switch';
 
 /** Footer from the design: brand, the factory that runs the platform, links and contact. */
@@ -12,10 +12,11 @@ export async function SiteFooter() {
   const s = landingStrings(locale);
   const brand = await getBrand().catch(() => null);
   const factory = brand ? (locale === 'ar' ? brand.factoryNameAr : brand.factoryNameEn) : null;
+  const hasProducts = (await listActiveProducts().catch(() => [])).length > 0;
   const links = [
     { href: '/#top', label: s.footer.links.home },
     { href: '/#about', label: s.footer.links.about },
-    { href: '/#products', label: s.header.nav.products },
+    ...(hasProducts ? [{ href: '/#products', label: s.header.nav.products }] : []),
     { href: '/#rewards', label: s.header.nav.rewards },
     { href: '/login', label: t.common.signIn },
   ];

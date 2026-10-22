@@ -3,7 +3,10 @@ import { redirect } from 'next/navigation';
 import { AuthShell } from '@/components/auth/auth-shell';
 import { LoginForm } from '@/components/auth/login-form';
 import { MembershipCard } from '@/components/card/membership-card';
+import { PASSWORD_PAGE } from '@/lib/auth/guards';
+import { smsSignInAvailable } from '@/lib/auth/otp';
 import { getSession } from '@/lib/auth/session';
+import { supportWhatsapp } from '@/lib/auth/support';
 import { isStaff } from '@/lib/auth/roles';
 import { getI18n } from '@/lib/i18n';
 import { safeNext } from '@/lib/safe-next';
@@ -17,6 +20,7 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
   const { t, locale } = await getI18n();
   const s = await getSession();
   const next = (await searchParams).next;
+  if (s?.user.mustChangePassword) redirect(PASSWORD_PAGE);
   if (s) redirect(isStaff(s.user.role) ? safeNext(next, '/admin') : s.craftsman ? safeNext(next, '/app') : '/app/onboarding');
   return (
     <AuthShell
@@ -28,7 +32,7 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
     >
       <h1 className="text-3xl font-bold">{t.auth.title}</h1>
       <p className="mt-2 mb-8 text-muted">{t.auth.subtitle}</p>
-      <LoginForm next={next} />
+      <LoginForm next={next} smsEnabled={smsSignInAvailable()} supportWhatsapp={await supportWhatsapp()} />
     </AuthShell>
   );
 }

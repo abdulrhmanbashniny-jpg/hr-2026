@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { apiUser } from '@/lib/auth/guards';
+import { apiPortalUser } from '@/lib/auth/guards';
 import { isStaff } from '@/lib/auth/roles';
 import { onboard } from '@/lib/craftsmen/service';
 import { ApiError, ok, readJson, route } from '@/lib/http';
@@ -18,7 +18,7 @@ const Body = z.object({
 });
 
 export const POST = route(async (req) => {
-  const s = await apiUser();
+  const s = await apiPortalUser();
   // Staff accounts review invoices and settle rewards; they cannot also earn on the platform.
   if (isStaff(s.user.role)) throw new ApiError('forbidden');
   const body = await readJson(req, Body);

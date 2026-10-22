@@ -2,13 +2,13 @@ import { and, eq } from 'drizzle-orm';
 import { z } from 'zod';
 import { db } from '@/db';
 import { pushSubscriptions } from '@/db/schema';
-import { apiUser } from '@/lib/auth/guards';
+import { apiPortalUser } from '@/lib/auth/guards';
 import { ok, readJson, route } from '@/lib/http';
 
 const Sub = z.object({ endpoint: z.url().max(1000), keys: z.object({ p256dh: z.string().max(200), auth: z.string().max(100) }) });
 
 export const POST = route(async (req) => {
-  const s = await apiUser();
+  const s = await apiPortalUser();
   const sub = await readJson(req, Sub);
   if (!sub.endpoint.startsWith('https://')) return ok({ subscribed: false });
   await db
@@ -19,7 +19,7 @@ export const POST = route(async (req) => {
 });
 
 export const DELETE = route(async (req) => {
-  const s = await apiUser();
+  const s = await apiPortalUser();
   const { endpoint } = await readJson(req, z.object({ endpoint: z.string().max(1000) }));
   await db.delete(pushSubscriptions).where(and(eq(pushSubscriptions.userId, s.user.id), eq(pushSubscriptions.endpoint, endpoint)));
   return ok({ subscribed: false });
