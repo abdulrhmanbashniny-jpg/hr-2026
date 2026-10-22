@@ -7,6 +7,7 @@ const Body = z.object({
   displayName: z.string().trim().min(2).max(60).optional(),
   bio: z.string().max(600).nullable().optional(),
   cityId: z.string().max(40).optional(),
+  district: z.string().trim().max(60).nullable().optional(),
   trades: z.array(z.string().max(40)).max(8).optional(),
   yearsExperience: z.number().int().min(0).max(60).optional(),
   whatsapp: z.string().max(20).nullable().optional(),

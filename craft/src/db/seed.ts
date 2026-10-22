@@ -196,6 +196,8 @@ async function main() {
             ? 'دهانات داخلية وخارجية بجودة عالية، مع معالجة الرطوبة والتشققات قبل الدهان.'
             : null,
         cityId,
+        district: demo ? 'حي النرجس' : null,
+        declaredTier: tier,
         trades: demo ? ['interior', 'decorative', 'exterior', 'waterproofing'] : [pick(TRADES).id, pick(TRADES).id].filter((v, k, a) => a.indexOf(v) === k),
         yearsExperience: demo ? 14 : between(1, 22),
         tier,

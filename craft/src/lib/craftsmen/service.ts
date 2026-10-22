@@ -56,6 +56,8 @@ export interface OnboardingInput {
   cityId: string;
   trades: string[];
   yearsExperience: number;
+  district?: string | null;
+  declaredTier?: 'A' | 'B' | 'C' | null;
   referralCode?: string | null;
   clientFingerprint?: string | null;
 }
@@ -81,6 +83,8 @@ export async function onboard(userId: string, phone: string, input: OnboardingIn
             referralCode: generateReferralCode(Math.random, length),
             displayName: input.displayName.trim(),
             cityId: city.id,
+            district: input.district?.trim() || null,
+            declaredTier: input.declaredTier ?? null,
             trades: validTrades,
             yearsExperience: input.yearsExperience,
             whatsapp: phone,
@@ -142,6 +146,7 @@ export interface ProfileUpdate {
   displayName?: string;
   bio?: string | null;
   cityId?: string;
+  district?: string | null;
   trades?: string[];
   yearsExperience?: number;
   whatsapp?: string | null;
@@ -159,6 +164,7 @@ export async function updateProfile(craftsmanId: string, userId: string, code: s
     if (!c) throw new ApiError('validation', 400, { cityId: ['unknown'] });
     set.cityId = c.id;
   }
+  if (patch.district !== undefined) set.district = patch.district?.trim() || null;
   if (patch.trades !== undefined) set.trades = patch.trades.length ? (await db.select({ id: trades.id }).from(trades).where(inArray(trades.id, patch.trades))).map((t) => t.id) : [];
   if (patch.yearsExperience !== undefined) set.yearsExperience = patch.yearsExperience;
   if (patch.whatsapp !== undefined) {

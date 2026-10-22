@@ -214,9 +214,12 @@ export const craftsmen = pgTable(
     cityId: text('city_id')
       .notNull()
       .references(() => cities.id),
+    district: text('district'),
     trades: text('trades').array().notNull().default(sql`'{}'::text[]`),
     yearsExperience: smallint('years_experience').notNull().default(0),
     tier: tierEnum('tier').notNull().default('C'),
+    /** The role the craftsman declared at sign-up; staff assign the real tier. */
+    declaredTier: tierEnum('declared_tier'),
     tierAssignedAt: ts('tier_assigned_at'),
     tierAssignedBy: uuid('tier_assigned_by').references(() => users.id, { onDelete: 'set null' }),
     availability: availabilityEnum('availability').notNull().default('available'),

@@ -64,6 +64,7 @@ export interface PublicProfile {
   bio: string | null;
   tier: Tier;
   city: { id: string; nameAr: string; nameEn: string };
+  district: string | null;
   trades: { id: string; nameAr: string; nameEn: string }[];
   yearsExperience: number;
   availability: 'available' | 'busy' | 'away';
@@ -131,6 +132,7 @@ async function load(code: string): Promise<PublicProfile | null> {
     bio: c.bio,
     tier: c.tier,
     city: { id: row.city.id, nameAr: row.city.nameAr, nameEn: row.city.nameEn },
+    district: c.district,
     trades: tradeRows.map((t) => ({ id: t.id, nameAr: t.nameAr, nameEn: t.nameEn })),
     yearsExperience: c.yearsExperience,
     availability: c.availabilityUntil && c.availabilityUntil < new Date() ? 'available' : c.availability,

@@ -10,6 +10,8 @@ const Body = z.object({
   cityId: z.string().min(2).max(40),
   trades: z.array(z.string().max(40)).max(8),
   yearsExperience: z.number().int().min(0).max(60),
+  district: z.string().trim().max(60).nullable().optional(),
+  declaredTier: z.enum(['A', 'B', 'C']).nullable().optional(),
   referralCode: z.string().max(20).nullable().optional(),
   consent: z.literal(true),
   fp: z.string().max(200).nullable().optional(),

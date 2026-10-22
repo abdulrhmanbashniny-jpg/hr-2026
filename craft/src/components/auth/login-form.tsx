@@ -19,10 +19,14 @@ interface Challenge {
   devCode?: string;
 }
 
-export function LoginForm({ next }: { next?: string }) {
+/**
+ * Phone, then the 6-digit code. The sign-up card on the landing page passes the number the visitor
+ * already typed (initialPhone + autoSend) so the code is requested straight away.
+ */
+export function LoginForm({ next, initialPhone = '', autoSend = false }: { next?: string; initialPhone?: string; autoSend?: boolean }) {
   const { t, locale } = useI18n();
   const router = useRouter();
-  const [phone, setPhone] = useState('');
+  const [phone, setPhone] = useState(initialPhone);
   const [challenge, setChallenge] = useState<Challenge | null>(null);
   const [code, setCode] = useState('');
   const [busy, setBusy] = useState(false);
@@ -35,6 +39,12 @@ export function LoginForm({ next }: { next?: string }) {
     const id = setInterval(() => setNow(Date.now()), 1000);
     return () => clearInterval(id);
   }, [challenge]);
+
+  useEffect(() => {
+    if (autoSend && initialPhone) void send();
+    // Only on mount: the visitor submitted the sign-up card a moment ago.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   async function send(e?: React.FormEvent) {
     e?.preventDefault();

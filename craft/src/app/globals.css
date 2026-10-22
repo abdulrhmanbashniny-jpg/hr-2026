@@ -281,11 +281,11 @@
     font-feature-settings: 'kern' 1;
     -webkit-font-smoothing: antialiased;
   }
+  /* Headings take their colour from the surface they sit on (navy text on light, white on navy). */
   h1,
   h2,
   h3,
   h4 {
-    color: var(--ink);
     font-weight: 700;
     letter-spacing: -0.01em;
     text-wrap: balance;
