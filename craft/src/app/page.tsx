@@ -304,7 +304,7 @@ export default async function LandingPage({ searchParams }: { searchParams: Prom
           <section id="products" className="scroll-mt-24 border-y border-line bg-surface-container-lowest py-16">
             <div className="mx-auto max-w-[1280px] px-margin-mobile lg:px-margin">
               <SectionHead eyebrow={s.products.eyebrow} title={s.products.title} body={s.products.body} />
-              <div className="grid grid-cols-1 gap-space-md sm:grid-cols-2 lg:grid-cols-4">
+              <div className="grid grid-cols-2 gap-space-sm sm:gap-space-md lg:grid-cols-4">
                 {data.products.map((p) => (
                   <article key={p.id} className="lift flex flex-col overflow-hidden rounded-2xl border border-line bg-surface-container-lowest shadow-sm">
                     <div className="relative aspect-square bg-surface-container-low">
@@ -321,10 +321,10 @@ export default async function LandingPage({ searchParams }: { searchParams: Prom
                     <div className="flex flex-1 flex-col p-space-md">
                       <div className="flex items-center gap-2">
                         <span className="size-4 shrink-0 rounded-full border border-line" style={{ background: p.swatch }} />
-                        <h3 className="text-headline-sm text-primary">{locale === 'ar' ? p.nameAr : p.nameEn}</h3>
+                        <h3 className="text-label-lg text-primary sm:text-headline-sm">{locale === 'ar' ? p.nameAr : p.nameEn}</h3>
                       </div>
-                      <p className="mt-space-xs flex-1 text-body-sm text-on-surface-variant">{locale === 'ar' ? p.descriptionAr : p.descriptionEn}</p>
-                      <dl className="mt-space-md grid grid-cols-3 gap-1 border-t border-line pt-space-sm text-center">
+                      <p className="mt-space-xs line-clamp-3 flex-1 text-body-sm text-on-surface-variant max-sm:hidden">{locale === 'ar' ? p.descriptionAr : p.descriptionEn}</p>
+                      <dl className="mt-space-md grid grid-cols-3 gap-1 border-t border-line pt-space-sm text-center max-sm:hidden">
                         <div>
                           <dt className="text-label-sm text-muted">{s.products.finishLabel}</dt>
                           <dd className="text-label-md text-primary">{(locale === 'ar' ? p.finishAr : p.finishEn) ?? '—'}</dd>
