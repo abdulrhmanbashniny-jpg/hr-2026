@@ -45,7 +45,7 @@ craft/
 
 ## Run it locally
 
-Requirements: Node.js 22 and PostgreSQL 14+. (The `tsx` scripts for migrations and the seed do not resolve path-alias directory imports on Node 24 yet.)
+Requirements: Node.js 22 and PostgreSQL 14+.
 
 ```bash
 cd craft
